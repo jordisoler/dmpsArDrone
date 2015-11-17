@@ -1,0 +1,8 @@
+<!-- <!DOCTYPE html> -->
+<launch>
+
+  <rosparam file="$(find gazebo_example)/params/ctrl_params.yaml" command="load"/>
+
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/arm" args="joint_state_controller joint1_position_controller"/>
+  	
+</launch>

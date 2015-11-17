@@ -1,0 +1,18 @@
+material ARtag_wall
+{
+  technique
+  {
+    pass
+    {
+      ambient 1.0 1.0 1.0 1.0
+      diffuse 0.0 0.0 0.0 1.0
+      specular 0.0 0.0 0.0 1.0
+      emissive 0.0 0.0 0.0 1.0
+      lighting off
+      texture_unit
+      {
+        texture 4x4_300_95.jpg
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" ?>
+<!-- 
+Artag Floor
+author: asantamaria\iri.upc.edu
+-->
+<sdf version="1.4">
+	<model name="artag_floor">
+		<static>1</static>
+	     <link name="artag_floor_link">
+	     	<pose>0 0 0 0 0 0</pose>
+			<visual name="visual">
+				<cast_shadows>1</cast_shadows>
+			   	<geometry>
+			   		<box>
+            			<size>0.2 0.2 0.001</size>
+          			</box>
+		   		</geometry>
+		   		<material>
+		   			<script>
+		   				<uri>model://artag_floor/material/artag_floor.material</uri>
+		   				<name>ARtag_floor</name>
+		   			</script>
+		   		</material>
+		   	</visual>
+			<collision name="collision">
+			   	<geometry>
+			   		<box>
+            			<size>0.2 0.2 0.001</size>
+          			</box>
+		   		</geometry>
+			</collision>
+	    </link>	     
+	</model>
+</sdf>	

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Launch World -->
+  <include file="$(find ardrone_sim)/launch/world.launch"/>	
+
+  <!-- Spawn simulated quadrotor uav -->
+  <include file="$(find ardrone_sim)/launch/spawn_ardrone.launch"/>
+
+</launch>

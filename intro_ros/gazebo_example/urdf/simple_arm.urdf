@@ -1,0 +1,94 @@
+<!-- <!DOCTYPE html> -->
+<robot name="arm">
+
+<!-- Link and Joint to fix the arm to the world ************-->
+<!-- **********************************************-->
+<link name="world"/>
+<joint name="fixed_joint" type="fixed">
+	<parent link="world"/>
+	<child link="link1"/>
+	<origin xyz="0 0 0.5" rpy="0 0 0"/>
+</joint>
+
+
+<!-- Link 1 ***************************************-->
+<!-- **********************************************-->
+<link name="link1">
+	<collision>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<geometry> <box size="0.1 0.1 1.0" /> </geometry>
+		<contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+	</collision>
+	<visual>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<geometry> <box size="0.1 0.1 1.0" /> </geometry>
+		<material name="white"> <color rgba="1.0 1.0 1.0 1.0"/> </material>
+	</visual>
+	<inertial>
+		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<mass value="0.03"/>
+		<inertia ixx="0.001" ixy="0.0"  ixz="0.0"  iyy="0.001"  iyz="0.0"  izz="0.001"/>
+	</inertial>
+</link>	
+
+<gazebo reference="link1">
+	<material>Gazebo/White</material>
+	<selfCollide>true</selfCollide>
+</gazebo>
+
+
+<!-- Joint 1 **************************************-->
+<!-- **********************************************-->
+<joint name="joint1" type="revolute" >
+	<axis xyz="1 0 0" />
+	<limit effort="1.0" lower="-1.5708" upper="1.5708" velocity="1.0"/>
+	<parent link="link1" />
+	<child link="link2" />
+	<origin xyz="0 0 0.5" rpy="0 0 0" />
+	<dynamics damping="1.0"/>
+</joint>
+
+<transmission name="tran1">
+	<type>transmission_interface/SimpleTransmission</type>
+	<joint name="joint1"> <hardwareInterface>EffortJointInterface</hardwareInterface> 	</joint>
+	<actuator name="motor1">
+		<hardwareInterface>EffortJointInterface</hardwareInterface>
+		<mechanicalReduction>1</mechanicalReduction>
+	</actuator>
+</transmission>
+
+
+<!-- Link 2 ***************************************-->
+<!-- **********************************************-->
+<link name="link2">
+	<collision>
+		<origin xyz="0 0 0.5" rpy="0 0 0"/>
+		<geometry> <box size="0.1 0.1 1.0" /> </geometry>
+		<contact_coefficients kd="1.0" kp="1000.0" mu="0"/>
+	</collision>
+	<visual>
+		<origin xyz="0 0 0.5" rpy="0 0 0"/>
+		<geometry> <box size="0.1 0.1 1.0" /> </geometry>
+		<material name="blue"> <color rgba="0.0 0.0 1.0 1.0"/> </material>
+	</visual>
+	<inertial>
+		<origin xyz="0 0 0.5" rpy="0 0 0"/>
+		<mass value="0.03"/>
+		<inertia ixx="0.001" ixy="0.0"  ixz="0.0"  iyy="0.001"  iyz="0.0"  izz="0.001"/>
+	</inertial>
+</link>
+
+<gazebo reference="link2">
+	<material>Gazebo/Blue</material>
+	<selfCollide>true</selfCollide>
+</gazebo>
+
+<!-- ros_control plugin -->
+<gazebo>
+	<plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+		<robotNamespace>/arm</robotNamespace>
+		<robotSimType>gazebo_ros_control/DefaultRobotHWSim</robotSimType>
+	</plugin>
+</gazebo>
+
+</robot>

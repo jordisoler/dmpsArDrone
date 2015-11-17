@@ -1,0 +1,25 @@
+<!-- <!DOCTYPE html> -->
+<launch>
+
+  <arg name="model_file" default="$(find gazebo_example)/urdf/simple_arm.urdf"/>
+  <arg name="model_name" default="arm"/>
+  <arg name="x_pos"      default="0"/>
+  <arg name="y_pos"      default="0"/>
+  <arg name="z_pos"      default="0"/>
+  <arg name="roll"       default="0"/>
+  <arg name="pitch"      default="0"/>
+  <arg name="yaw"        default="0"/>
+
+  <param name="robot_description" command="cat '$(arg model_file)'" />
+
+  <!-- push robot_description to factory and spawn robot in gazebo -->
+  <node name="spawn_$(arg model_name)" pkg="gazebo_ros" type="spawn_model"
+    args="-param robot_description -urdf -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -R $(arg roll) -P $(arg pitch) -Y $(arg yaw) -model $(arg model_name)" respawn="false" output="screen"/>
+
+  <!-- robot state publisher -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <remap from="/joint_states" to="/$(arg model_name)/joint_states" />
+    <param name="publish_frequency" type="double" value="100.0" />
+  </node>
+
+ </launch>

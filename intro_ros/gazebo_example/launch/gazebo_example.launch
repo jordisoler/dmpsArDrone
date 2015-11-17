@@ -1,0 +1,16 @@
+<!-- <!DOCTYPE html> -->
+<launch>
+
+	<!-- Launch empty world -->
+	<include file="$(find gazebo_example)/launch/empty_world.launch"/>
+
+	<!-- Spawn the simple arm model -->
+	<include file="$(find gazebo_example)/launch/spawn_model.launch"/>
+
+	<!-- Load simple arm controllers -->
+	<include file="$(find gazebo_example)/launch/load_controllers.launch"/>
+
+	<!-- Launch RVIZ -->
+	<node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(find gazebo_example)/config/simple_model.rviz"/>
+
+</launch>

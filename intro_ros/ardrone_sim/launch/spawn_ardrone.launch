@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="x_" default="0.15"/>
+  <arg name="y_" default="0"/>
+  <arg name="z_" default="0"/>
+  <arg name="R_" default="0"/>
+  <arg name="P_" default="0"/>
+  <arg name="Y_" default="0"/>
+
+
+  <!-- Spawn simulated quadrotor uav -->
+  <include file="$(find cvg_sim_gazebo)/launch/spawn_quadrotor.launch" >
+    <arg name="model" value="$(find cvg_sim_gazebo)/urdf/quadrotor_sensors.urdf.xacro"/>
+    <arg name="x" value="$(arg x_)"/> 
+    <arg name="y" value="$(arg y_)"/> 
+    <arg name="z" value="$(arg z_)"/> 
+    <arg name="R" value="$(arg R_)"/> 
+    <arg name="P" value="$(arg P_)"/> 
+    <arg name="Y" value="$(arg Y_)"/> 
+  </include>
+
+</launch>

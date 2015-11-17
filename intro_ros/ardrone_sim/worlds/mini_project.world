@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<sdf version="1.4">
+  <world name="default">
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- Global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    
+    <!-- Focus camera on tall pendulum -->
+    <gui fullscreen='0'>
+      <camera name='user_camera'>
+        <pose>3 -3 2 0.000000 0.275643 2.356190</pose>
+        <view_controller>orbit</view_controller>
+      </camera>
+    </gui>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <!-- ARtag floor -->
+    <include>
+        <uri>model://artag_floor</uri>
+        <pose>0.15 0 0 0 0 0</pose>
+    </include>
+    <!-- ARtag wall -->
+    <include>
+        <uri>model://artag_wall</uri>
+        <pose>0 3 1 0 1.5707 +1.5707</pose>
+    </include>
+
+   </world>
+</sdf>
