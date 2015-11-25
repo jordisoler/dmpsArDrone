@@ -12,7 +12,7 @@ sudo apt-get install ros-ROSDISTRO-ardrone-autonomy
 - ar_tools for ROS:
   Can be found in https://github.com/ar-tools/ar_tools.git
 
-This repository is supposed to be cloned within a ROS workspace.
+This repository is supposed to be cloned within a the `src/` folder of a catkin workspace.
 
 In order to properly load the Gazebo models one may include some paths to the Gazebo environment variables:
 ```shell
