@@ -13,3 +13,15 @@ sudo apt-get install ros-ROSDISTRO-ardrone-autonomy
   Can be found in https://github.com/ar-tools/ar_tools.git
 
 This repository is supposed to be cloned within a ROS workspace.
+
+In order to properly load the Gazebo models one may include some paths to the Gazebo environment variables:
+```shell
+<path_to_the_repo>/intro_ros/ardrone_sim/models/:$GAZEBO_MODEL_PATH
+<path_to_the_repo>/intro_ros/ardrone_sim/models/:$GAZEBO_RESOURCE_PATH
+```
+One is likely to be interested in putting these lines in the ```~/.bashrc``` file.
+
+After compilation, to play with a simple scenario run
+```shell
+roslaunch prj_drone prj_drone_tirar_full.launch
+```
