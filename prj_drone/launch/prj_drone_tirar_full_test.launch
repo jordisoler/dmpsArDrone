@@ -1,0 +1,23 @@
+<!-- -->
+<launch>
+  <node name="ar_pose" pkg ="ar_pose" type="ar_multi" respawn="false" output="screen">
+    <param name="marker_pattern_list" type="string" value="$(find ar_pose)/data/object_4x4"/>
+    <param name="threshold"       type="int"    value="100"/>
+    <param name="use_history"     type="bool"   value="true"/>
+
+    <remap from="/camera/camera_info" to="/ardrone/camera_info"/>
+    <!-- <remap from="/camera/image_raw" to="/ardrone/front/image_raw"/> -->
+    <remap from="/camera/image_raw" to="/ardrone/image_raw"/>
+
+
+  </node>
+
+  <!-- Added files: -->
+  <include file="$(find ardrone_sim)/launch/ardrone_sim.launch"/>
+  <node name="rqt_reconfigure" pkg ="rqt_reconfigure" type = "rqt_reconfigure"/>
+  <node name="viewer" pkg="prj_drone" type="rqt_view.sh"/>
+  <!-- . -->
+
+  <node name="prj_drone_node" pkg ="prj_drone" type="prj_drone_node_test" output="screen">
+  </node>
+</launch>

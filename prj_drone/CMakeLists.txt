@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   dynamic_reconfigure
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -114,6 +115,7 @@ include_directories(
 
 ## Declare a cpp executable
 add_executable(prj_drone_node src/prj_drone_node.cpp)
+add_executable(prj_drone_node_test src/prj_drone_node_test.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
@@ -121,11 +123,15 @@ add_executable(prj_drone_node src/prj_drone_node.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(prj_drone_node ${catkin_LIBRARIES})
+target_link_libraries(prj_drone_node_test ${catkin_LIBRARIES})
 
 
 add_dependencies(prj_drone_node ${PROJECT_NAME}_gencfg)
 add_dependencies(prj_drone_node ar_pose_generate_messages_cpp)
 ## es posible que falti alguna cosa
+
+add_dependencies(prj_drone_node_test ${PROJECT_NAME}_gencfg)
+add_dependencies(prj_drone_node_test ar_pose_generate_messages_cpp)
 
 #############
 ## Install ##
