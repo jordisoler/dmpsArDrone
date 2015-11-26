@@ -12,26 +12,28 @@
 
 struct ActionsToDo
 {
-   bool update_takeoff;
-   bool update_land; 
-   bool update_cambio_camara;
-   double update_velocidadX;
-   double update_velocidadY;
-   double update_velocidadZ;
-   double update_angularX;
-   double update_angularY;
-   double update_angularZ;
+	bool update_takeoff;
+	bool update_land; 
+	bool update_cambio_camara;
+	bool update_reset;
+	double update_velocidadX;
+	double update_velocidadY;
+	double update_velocidadZ;
+	double update_angularX;
+	double update_angularY;
+	double update_angularZ;
 
-   ActionsToDo(){
-   update_takeoff=false;
-   update_land=false;
-   update_cambio_camara=false;
-   update_velocidadX=false;
-   update_velocidadY=false;
-   update_velocidadZ=false;
-   update_angularX=false;
-   update_angularY=false;
-   update_angularZ=false;
+	ActionsToDo(){
+	update_takeoff=false;
+	update_land=false;
+	update_cambio_camara=false;
+	update_reset=false;
+	update_velocidadX=false;
+	update_velocidadY=false;
+	update_velocidadZ=false;
+	update_angularX=false;
+	update_angularY=false;
+	update_angularZ=false;
 
   }
 };
@@ -56,26 +58,28 @@ void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level) //
 //void takeoffCallback(const std_msgs::Empty &msg);
 {
 	//ROS_INFO("New Desired position: (%f,%f,%f). Print screen: %s", config.x, config.y, config.z,	config.print_screen ? "True" : "False");
-    
-   actions_todo.update_takeoff=config.take_off;
+	actions_todo.update_takeoff=config.take_off;
 	config.take_off=false;
-   actions_todo.update_land=config.land;
+	actions_todo.update_land=config.land;
 	config.land=false;
-   actions_todo.update_cambio_camara=config.cambio_camara; 
-        config.cambio_camara=false;
-   actions_todo.update_velocidadX=config.velocidadX; 
-   actions_todo.update_velocidadY=config.velocidadY; 
-   actions_todo.update_velocidadZ=config.velocidadZ; 
-   actions_todo.update_angularX=config.angularX; 
-   actions_todo.update_angularY=config.angularY; 
-   actions_todo.update_angularZ=config.angularZ; 
+	actions_todo.update_cambio_camara=config.cambio_camara; 
+	config.cambio_camara=false;
+	actions_todo.update_reset=config.reset;
+	config.reset=false;
+	actions_todo.update_velocidadX=config.velocidadX; 
+	actions_todo.update_velocidadY=config.velocidadY; 
+	actions_todo.update_velocidadZ=config.velocidadZ; 
+	actions_todo.update_angularX=config.angularX; 
+	actions_todo.update_angularY=config.angularY; 
+	actions_todo.update_angularZ=config.angularZ;
+
 
 // leo error distance
-   distancia_deseada_z_=config.z_desitjada;
-   distancia_deseada_y_=config.y_desitjada;
-   distancia_deseada_x_=config.x_desitjada;
+	distancia_deseada_z_=config.z_desitjada;
+	distancia_deseada_y_=config.y_desitjada;
+	distancia_deseada_x_=config.x_desitjada;
 
-   ROS_INFO("Reconfigure Request: %f %f %f", distancia_deseada_x_, distancia_deseada_y_, distancia_deseada_z_);
+	ROS_INFO("Reconfigure Request: %f %f %f", distancia_deseada_x_, distancia_deseada_y_, distancia_deseada_z_);
 
 	// Store new acquired values
 	//desired_pose_.clear();
@@ -89,18 +93,18 @@ void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level) //
 
 void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& mensage){
 
-    if  (mensage->markers.size()>0)
-    {
-	marker_z_=mensage->markers[0].pose.pose.position.z;
-	marker_y_=mensage->markers[0].pose.pose.position.y;
-	marker_x_=mensage->markers[0].pose.pose.position.x;
-        ROS_INFO("I heard %f %f %f", marker_x_,marker_y_,marker_z_);
+	if  (mensage->markers.size()>0)
+	{
+		marker_z_=mensage->markers[0].pose.pose.position.z;
+		marker_y_=mensage->markers[0].pose.pose.position.y;
+		marker_x_=mensage->markers[0].pose.pose.position.x;
+		ROS_INFO("I heard %f %f %f", marker_x_,marker_y_,marker_z_);
 
-//        double error=marker_z_-distancia_deseada_z_;
-	double error=sqrt(pow(marker_x_-distancia_deseada_x_,2)+pow(marker_y_-distancia_deseada_y_,2)+pow(marker_z_-distancia_deseada_z_,2));
+		//cameras_sccameras_scdouble error=marker_z_-distancia_deseada_z_;
+		double error=sqrt(pow(marker_x_-distancia_deseada_x_,2)+pow(marker_y_-distancia_deseada_y_,2)+pow(marker_z_-distancia_deseada_z_,2));
 
 	ROS_INFO("Error modul:  %f", error);
-    }
+	}
 }
 
 
@@ -126,88 +130,98 @@ void cmd_velCallback(const std_msgs::Empty::ConstPtr& msg)
 */
 
 
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "prj_drone_node");
-  ros::NodeHandle n;
-  ros::Rate loop_rate(10);
-
-  
-
-//  ros::Subscriber sub = n.subscribe("chatter", 1000, chatterCallback);
-//    ros::Subscriber sub = n.subscribe("/ardrone/takeoff", 1000,takeoffCallback);
-//    ros::Subscriber sub_1 = n.subscribe("/ardrone/land", 1000,landCallback);
-//    ros::Subscriber sub_2 = n.subscribe("/cmd_vel", 1000,cmd_velCallback);
-    
-    ros::Publisher chatter_pub = n.advertise<std_msgs::Empty>("/ardrone/takeoff", 1000);
-
-    ros::Publisher Land_pub = n.advertise<std_msgs::Empty>("/ardrone/land", 1000);
-    ros::Publisher Velocidad_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000); // <package::tipo_mensaje>("topic")
-
-    ros::ServiceClient camaras_sol = n.serviceClient <std_srvs::Empty> ("/ardrone/togglecam"); //<paquete::tipo_mensaje>("nombre del servicio")
-
-    ros::Subscriber ar_pose_sub = n.subscribe("ar_pose_marker", 1, MarkerCallback);	//MARKER
+	int main(int argc, char **argv)
+	{
+	ros::init(argc, argv, "prj_drone_node");
+	ros::NodeHandle n;
+	ros::Rate loop_rate(10);
 
 
-//  ROS_INFO("-- Starting simple subscriber node");
-   dynamic_reconfigure::Server<prj_drone::dynamic_paramsConfig> server;
-   dynamic_reconfigure::Server<prj_drone::dynamic_paramsConfig>::CallbackType f;
 
-   f = boost::bind(&dynrec_callback, _1, _2);
-   server.setCallback(f);
+	//  ros::Subscriber sub = n.subscribe("chatter", 1000, chatterCallback);
+	//cameras_scros::Subscriber sub = n.subscribe("/ardrone/takeoff", 1000,takeoffCallback);
+	//cameras_scros::Subscriber sub_1 = n.subscribe("/ardrone/land", 1000,landCallback);
+	//cameras_scros::Subscriber sub_2 = n.subscribe("/cmd_vel", 1000,cmd_velCallback);
 
+	ros::Publisher chatter_pub = n.advertise<std_msgs::Empty>("/ardrone/takeoff", 1000);
 
-  while (ros::ok())
-  {
- 
-   if (actions_todo.update_takeoff){
-      	std_msgs::Empty msg;
-      	chatter_pub.publish(msg);
-    }
+	ros::Publisher Land_pub = n.advertise<std_msgs::Empty>("/ardrone/land", 1000);
+	ros::Publisher Velocidad_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000); // <package::tipo_mensaje>("topic")
 
-   if (actions_todo.update_land){
-      	std_msgs::Empty msgL;
-      	Land_pub.publish(msgL);
-    }
-   if (actions_todo.update_cambio_camara){
-      //std_msgs::Empty msgL;
-      //Land_pub.publish(msgL);
-	std_srvs::Empty msgT;
-	camaras_sol.call(msgT);
-      	ROS_INFO("Tocaria solicitar el servicio de cambio de camara");
-	actions_todo.update_cambio_camara=false;	
-    }
+	ros::ServiceClient camaras_sol = n.serviceClient <std_srvs::Empty> ("/ardrone/togglecam"); //<paquete::tipo_mensaje>("nombre del servicio")
+
+	ros::ServiceClient reset_sc = n.serviceClient<std_srvs::Empty>("/ardrone/reset", 1000);
+
+	ros::Subscriber ar_pose_sub = n.subscribe("ar_pose_marker", 1, MarkerCallback);	//MARKER
 
 
-    if (actions_todo.update_velocidadX || actions_todo.update_velocidadY || actions_todo.update_velocidadZ || 
-    	actions_todo.update_angularZ){
-    	geometry_msgs::Twist msgV;
-    	msgV.linear.x= actions_todo.update_velocidadX;
-    	msgV.linear.y= actions_todo.update_velocidadY;
-    	msgV.linear.z= actions_todo.update_velocidadZ;
-    	msgV.angular.z= actions_todo.update_angularZ;
-    	Velocidad_pub.publish(msgV);
-    }
+	//  ROS_INFO("-- Starting simple subscriber node");
+	dynamic_reconfigure::Server<prj_drone::dynamic_paramsConfig> server;
+	dynamic_reconfigure::Server<prj_drone::dynamic_paramsConfig>::CallbackType f;
 
- 
+	f = boost::bind(&dynrec_callback, _1, _2);
+	server.setCallback(f);
 
-/*
-geometry_msgs/Twist
-geometry_msgs/Vector3 linear
-  float64 
 
-  float64 y
-  float64 z
-geometry_msgs/Vector3 angular
-  float64 x
-  float64 y
-  float64 z
-*/
+	while (ros::ok())
+	{
 
-	
-  
-    ros::spinOnce();
-    loop_rate.sleep();
-  }
-  return 0;
+		if (actions_todo.update_takeoff){
+			std_msgs::Empty msg;
+			chatter_pub.publish(msg);
+		}
+
+		if (actions_todo.update_land){
+			std_msgs::Empty msgL;
+			Land_pub.publish(msgL);
+		}
+		if (actions_todo.update_cambio_camara){
+			//std_msgs::Empty msgL;
+			//Land_pub.publish(msgL);
+			std_srvs::Empty msgT;
+			camaras_sol.call(msgT);
+			ROS_INFO("Toggle camera!");
+			actions_todo.update_cambio_camara=false;	
+		}
+
+		if (actions_todo.update_reset){
+			ROS_INFO("Reset!");
+			std_srvs::Empty msg;
+			reset_sc.call(msg);
+			actions_todo.update_reset=false;
+		}
+
+
+		if (actions_todo.update_velocidadX || actions_todo.update_velocidadY || actions_todo.update_velocidadZ || 
+			actions_todo.update_angularZ){
+			geometry_msgs::Twist msgV;
+			msgV.linear.x= actions_todo.update_velocidadX;
+			msgV.linear.y= actions_todo.update_velocidadY;
+			msgV.linear.z= actions_todo.update_velocidadZ;
+			msgV.angular.z= actions_todo.update_angularZ;
+			Velocidad_pub.publish(msgV);
+		}
+
+
+
+		/*
+		geometry_msgs/Twist
+		geometry_msgs/Vector3 linear
+		float64 
+
+		float64 y
+		float64 z
+		geometry_msgs/Vector3 angular
+		float64 x
+		float64 y
+		float64 z
+		*/
+
+
+
+		ros::spinOnce();
+		loop_rate.sleep();
+	}
+
+	return 0;
 }
