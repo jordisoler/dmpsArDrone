@@ -177,48 +177,19 @@ int main(int argc, char **argv)
       	ROS_INFO("Tocaria solicitar el servicio de cambio de camara");
 	actions_todo.update_cambio_camara=false;	
     }
-   if (actions_todo.update_velocidadX){
-      	//std_msgs::Empty msgL;
-      	//Land_pub.publish(msgL);
-	geometry_msgs::Twist msgV;
-	msgV.linear.x= actions_todo.update_velocidadX;
-	Velocidad_pub.publish(msgV);
-   }
-   if (actions_todo.update_velocidadY){
-      	//std_msgs::Empty msgL;
-      	//Land_pub.publish(msgL);
-	geometry_msgs::Twist msgV;
-	msgV.linear.y= actions_todo.update_velocidadY;
-	Velocidad_pub.publish(msgV);
-   }
-   if (actions_todo.update_velocidadZ){
-      	//std_msgs::Empty msgL;
-      	//Land_pub.publish(msgL);
-	geometry_msgs::Twist msgV;
-	msgV.linear.z= actions_todo.update_velocidadZ;
-	Velocidad_pub.publish(msgV);
-   }
-   if (actions_todo.update_angularX){
-      	//std_msgs::Empty msgL;
-      	//Land_pub.publish(msgL);
-	geometry_msgs::Twist msgV;
-	msgV.angular.x= actions_todo.update_angularX;
-	Velocidad_pub.publish(msgV);
-   }
-   if (actions_todo.update_angularY){
-      	//std_msgs::Empty msgL;
-      	//Land_pub.publish(msgL);
-	geometry_msgs::Twist msgV;
-	msgV.angular.y= actions_todo.update_angularY;
-	Velocidad_pub.publish(msgV);
-   }
-   if (actions_todo.update_angularZ){
-      	//std_msgs::Empty msgL;
-      	//Land_pub.publish(msgL);
-	geometry_msgs::Twist msgV;
-	msgV.angular.z= actions_todo.update_angularZ;
-	Velocidad_pub.publish(msgV);
-   }
+
+
+    if (actions_todo.update_velocidadX || actions_todo.update_velocidadY || actions_todo.update_velocidadZ || 
+    	actions_todo.update_angularZ){
+    	geometry_msgs::Twist msgV;
+    	msgV.linear.x= actions_todo.update_velocidadX;
+    	msgV.linear.y= actions_todo.update_velocidadY;
+    	msgV.linear.z= actions_todo.update_velocidadZ;
+    	msgV.angular.z= actions_todo.update_angularZ;
+    	Velocidad_pub.publish(msgV);
+    }
+
+ 
 
 /*
 geometry_msgs/Twist
