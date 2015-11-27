@@ -116,6 +116,7 @@ int main(int argc, char **argv){
 	ros::Publisher chatter_pub = n.advertise<std_msgs::Empty>("/ardrone/takeoff", 1000);
 	ros::Publisher Land_pub = n.advertise<std_msgs::Empty>("/ardrone/land", 1000);
 	ros::Publisher Velocidad_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+	ros::Publisher reset_pub = n.advertise<std_msgs::Empty>("/ardrone/reset", 1000);
 
 	// Subscribers
 	ros::Subscriber ar_pose_sub = n.subscribe("ar_pose_marker", 1, MarkerCallback);
@@ -123,7 +124,6 @@ int main(int argc, char **argv){
 
 	// Service clients
 	ros::ServiceClient camaras_sol = n.serviceClient <std_srvs::Empty> ("/ardrone/togglecam");
-	ros::ServiceClient reset_sc = n.serviceClient<std_srvs::Empty>("/ardrone/reset", 1000);
 
 	// Set up dynamic reconfigure
 	dynamic_reconfigure::Server<prj_drone::dynamic_paramsConfig> server;
@@ -160,8 +160,8 @@ int main(int argc, char **argv){
 		// Reset ArDrone
 		if (actions_todo.update_reset){
 			ROS_INFO("Reset!");
-			std_srvs::Empty msg;
-			reset_sc.call(msg);
+			std_msgs::Empty msg;
+			reset_pub.publish(msg);
 			actions_todo.update_reset=false;
 		}
 
@@ -197,8 +197,8 @@ int main(int argc, char **argv){
 
 
 	// Reset ArDrone when stopping node
-	std_srvs::Empty msg;
-	reset_sc.call(msg);
+	std_msgs::Empty msg;
+	reset_pub.publish(msg);
 
 	return 0;
 }
