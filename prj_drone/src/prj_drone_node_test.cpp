@@ -53,12 +53,12 @@ double marker_orient_x;
 double marker_orient_y;
 double marker_orient_z;
 double marker_orient_w;
-double distancia_deseada_z_=1; 
-double distancia_deseada_y_=0; 
-double distancia_deseada_x_=0; 
-double distancia_deseada_z2_=1; 
-double distancia_deseada_y2_=0; 
-double distancia_deseada_x2_=0; 
+double desired_distance_z_=1; 
+double desired_distance_y_=0; 
+double desired_distance_x_=0; 
+double desired_distance_z2_=1; 
+double desired_distance_y2_=0; 
+double desired_distance_x2_=0; 
 double angulo_deseado_yaw_=1.57;
 
 double kpZ = 1;
@@ -137,9 +137,9 @@ void Control1(){
 	//if( enable_control == true){ 
 	geometry_msgs::Twist msgV;
    		
-   	errorZ = marker_z_ - distancia_deseada_z_;
-	errorY = marker_x_ - distancia_deseada_x_;
-	errorX = marker_y_ - distancia_deseada_y_;
+   	errorZ = marker_z_ - desired_distance_z_;
+	errorY = marker_x_ - desired_distance_x_;
+	errorX = marker_y_ - desired_distance_y_;
 	//ROS_INFO("Error  X  Y  Z:  %f  %f %f \n", errorX, errorY, errorZ);
 	errorYaw = angulo_deseado_yaw_ - yaw;
 	//ROS_INFO("Yaw leido:  %f  , yaw deseado: %f  , control yaw: %f",yaw, angulo_deseado_yaw_, errorYaw);
@@ -236,9 +236,9 @@ int main(int argc, char **argv)
    		}
    		else if (ESTADO == CONTROLANDO1){ //State
 
-			errorZ = marker_z_ - distancia_deseada_z_;
-			errorY = marker_x_ - distancia_deseada_x_;
-			errorX = marker_y_ - distancia_deseada_y_;
+			errorZ = marker_z_ - desired_distance_z_;
+			errorY = marker_x_ - desired_distance_x_;
+			errorX = marker_y_ - desired_distance_y_;
 			errorYaw = angulo_deseado_yaw_ - yaw;
 
 			// Control X
@@ -283,9 +283,9 @@ int main(int argc, char **argv)
    				ROS_INFO("ESTADO = %d", ESTADO);
 			}
 			else{
-				errorZ = marker_z_ - distancia_deseada_z_;
-				errorY = marker_x_ - distancia_deseada_x_;
-				errorX = marker_y_ - distancia_deseada_y_;
+				errorZ = marker_z_ - desired_distance_z_;
+				errorY = marker_x_ - desired_distance_x_;
+				errorX = marker_y_ - desired_distance_y_;
 				errorYaw = angulo_deseado_yaw_ - yaw;
 				// Control X
 				control_actionX = kpX* (-errorX);
@@ -305,9 +305,9 @@ int main(int argc, char **argv)
    		}    
    		else if(ESTADO == CONTROLANDO2){ //State
 
-   			errorZ2 = marker_z_ - distancia_deseada_z2_;
-			errorX2 = marker_x_ - distancia_deseada_x2_;
-			errorY2 = marker_y_ - distancia_deseada_y2_;
+   			errorZ2 = marker_z_ - desired_distance_z2_;
+			errorX2 = marker_x_ - desired_distance_x2_;
+			errorY2 = marker_y_ - desired_distance_y2_;
 			ROS_INFO("marker_z = %f    errorZ2 = %f", marker_z_, errorZ2);
 
 			control_actionX = kpZ2 * (errorZ2);
@@ -344,9 +344,9 @@ int main(int argc, char **argv)
    				ROS_INFO("ESTADO = %d", ESTADO);
 			}
 			else{
-   				errorZ2 = marker_z_ - distancia_deseada_z2_;
-				errorX2 = marker_x_ - distancia_deseada_x2_;
-				errorY2 = marker_y_ - distancia_deseada_y2_;
+   				errorZ2 = marker_z_ - desired_distance_z2_;
+				errorX2 = marker_x_ - desired_distance_x2_;
+				errorY2 = marker_y_ - desired_distance_y2_;
 			
 				control_actionX = kpZ2 * (errorZ2);
 				msgV.linear.x = control_actionX;
