@@ -256,6 +256,7 @@ int main(int argc, char **argv)
 
 			Velocidad_pub.publish(msgV);
 
+			
 			if(errorYaw < 0.05){				// Tansition
    				ESTADO = ESPERANDO1;
    				ROS_INFO("ESTADO = %d", ESTADO);

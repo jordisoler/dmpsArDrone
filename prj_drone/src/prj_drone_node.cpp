@@ -7,6 +7,7 @@
 #include "ardrone_autonomy/Navdata.h"
 #include <cstdlib>
 #include "ar_pose/ARMarkers.h"
+#include "tf/transform_listener.h"
 
 
 // States of the ArDrone
@@ -48,10 +49,10 @@ ActionsToDo actions_todo;
 
 int RECEIVED_STATE_, CURRENT_STATE_;
 
-bool cam_;	// Indicates wether the bottom cam is  active or not.
+bool cam_, turning_;	// Indicates wether the bottom cam is  active or not.
 
-double marker_z_, marker_y_, marker_x_;
-double desired_distance_z_=0, desired_distance_y_=0, desired_distance_x_=0; 
+double marker_z_, marker_y_, marker_x_, yaw_;
+double desired_distance_z_=1, desired_distance_y_=0, desired_distance_x_=0, desired_angle_yaw_=1.57; 
 
 // CALLBACKS
 void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level) 
@@ -86,13 +87,19 @@ void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message){
 	// Handling marker data
 	if  (message->markers.size()>0)
 	{
+		double roll, pitch;
 		marker_z_=message->markers[0].pose.pose.position.z;
 		marker_y_=message->markers[0].pose.pose.position.y;
 		marker_x_=message->markers[0].pose.pose.position.x;
-		double error=sqrt(pow(marker_x_-desired_distance_x_,2)+pow(marker_y_-desired_distance_y_,2)+pow(marker_z_-desired_distance_z_,2));
+		
+		tf::Quaternion qt;
+		tf::quaternionMsgToTF(message->markers[0].pose.pose.orientation,qt);
+		tf::Matrix3x3(qt).getRPY(roll, pitch, yaw_);
 
-		ROS_INFO("I heard %f %f %f", marker_x_,marker_y_,marker_z_);
-		ROS_INFO("Error modul:  %f", error);
+		//double error=sqrt(pow(marker_x_-desired_distance_x_,2)+pow(marker_y_-desired_distance_y_,2)+pow(marker_z_-desired_distance_z_,2));
+
+		//ROS_INFO("I heard %f %f %f", marker_x_,marker_y_,marker_z_);
+		//ROS_INFO("Error modul:  %f", error);
 	}
 }
 
@@ -121,7 +128,7 @@ int main(int argc, char **argv){
 	// Publishers
 	ros::Publisher chatter_pub = n.advertise<std_msgs::Empty>("/ardrone/takeoff", 1000);
 	ros::Publisher Land_pub = n.advertise<std_msgs::Empty>("/ardrone/land", 1000);
-	ros::Publisher Velocidad_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
+	ros::Publisher twist_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
 	ros::Publisher reset_pub = n.advertise<std_msgs::Empty>("/ardrone/reset", 1000);
 
 	// Subscribers
@@ -141,6 +148,7 @@ int main(int argc, char **argv){
 	// Set up states
 	CURRENT_STATE_ = LANDED;
 	cam_ = false;
+	turning_ = false;
 
 	// Main loop
 	while (ros::ok()){
@@ -170,6 +178,9 @@ int main(int argc, char **argv){
 			actions_todo.update_reset=false;
 		}
 
+		geometry_msgs::Twist empty_T;
+		twist_pub.publish(empty_T);
+
 		// State transitions
 		if(CURRENT_STATE_ != RECEIVED_STATE_){
 			std::string state;
@@ -183,9 +194,11 @@ int main(int argc, char **argv){
 					break;
 				case HOVERING :
 					state = "Hovering";
+					turning_ = true;
 					break;
 				case LANDING :
 					state = "Landing";
+					turning_ = false;
 					break;
 				case LANDED :
 					state = "Landed";
@@ -196,7 +209,24 @@ int main(int argc, char **argv){
 			CURRENT_STATE_ = RECEIVED_STATE_;
 		}
 
-		/*/ Send Twist
+		if (turning_){
+			double errX, errY, errZ, errYaw, Kx=1, Ky=1, Kz=1, Kyaw=1;
+			geometry_msgs::Twist msg;
+
+			errX = desired_distance_x_-marker_x_;
+			errY = desired_distance_y_-marker_y_;
+			errZ = desired_distance_z_-marker_z_;
+			errYaw = desired_angle_yaw_-yaw_;
+
+			msg.linear.y=Kx*errX;
+			msg.linear.x=Ky*errY;
+			msg.linear.z=Kz*errZ;
+			msg.angular.z=Kyaw*errYaw;
+			twist_pub.publish(msg);
+
+		}
+
+		/* Send Twist
 		if (actions_todo.update_velocityX || actions_todo.update_velocityY || actions_todo.update_velocityZ || 
 			actions_todo.update_angularZ){
 			geometry_msgs::Twist msgV;
@@ -204,7 +234,7 @@ int main(int argc, char **argv){
 			msgV.linear.y= actions_todo.update_velocityY;
 			msgV.linear.z= actions_todo.update_velocityZ;
 			msgV.angular.z= actions_todo.update_angularZ;
-			Velocidad_pub.publish(msgV);
+			twist_pub.publish(msgV);
 		}*/
 
 		ros::spinOnce();
