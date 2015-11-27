@@ -10,15 +10,10 @@
 
 
 // States of the ArDrone
-#define LANDED 0
-#define TAKINGOFF 1
-#define UP 2
-#define CONTROLLING1 3
-#define WAITING1 4
-#define CONTROLLING2 5
-#define WAITING2 6
-#define GO_DOWN 7
+#define TAKINGOFF 6
+#define HOVERING 3
 #define LANDING 8
+#define LANDED 2
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -52,6 +47,8 @@ struct ActionsToDo
 ActionsToDo actions_todo; 
 
 int RECEIVED_STATE_, CURRENT_STATE_;
+
+bool cam_;	// Indicates wether the bottom cam is  active or not.
 
 double marker_z_, marker_y_, marker_x_;
 double desired_distance_z_=0, desired_distance_y_=0, desired_distance_x_=0; 
@@ -105,6 +102,15 @@ void NavdataCallback(const ardrone_autonomy::Navdata::ConstPtr& msg_Navdata){
 	RECEIVED_STATE_ = msg_Navdata->state;
 }
 
+
+// Auxiliary functions
+void tgcam(ros::ServiceClient camaras_sc){
+	std_srvs::Empty msgT;
+	camaras_sc.call(msgT);
+	ROS_INFO("Toggle camera!");
+	cam_ = !cam_;
+}
+
 // Main function
 int main(int argc, char **argv){
 	// Set up ROS node
@@ -134,6 +140,7 @@ int main(int argc, char **argv){
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
+	cam_ = false;
 
 	// Main loop
 	while (ros::ok()){
@@ -151,9 +158,7 @@ int main(int argc, char **argv){
 
 		// Toggle camera
 		if (actions_todo.update_toggle_cam){
-			std_srvs::Empty msgT;
-			camaras_sol.call(msgT);
-			ROS_INFO("Toggle camera!");
+			tgcam(camaras_sol);
 			actions_todo.update_toggle_cam=false;	
 		}
 
@@ -167,18 +172,29 @@ int main(int argc, char **argv){
 
 		// State transitions
 		if(CURRENT_STATE_ != RECEIVED_STATE_){
-			// ROS_INFO("CURRENT_STATE_ = %u, RECEIVED_STATE_ = %u", CURRENT_STATE_, RECEIVED_STATE_);
-			if (RECEIVED_STATE_==6){
-				ROS_INFO("****************State: Taking off.**************");
-				actions_todo.update_toggle_cam=true;
+			std::string state;
+
+			switch(RECEIVED_STATE_){
+				case TAKINGOFF :
+					state = "Taking off";
+					if(!cam_){
+						tgcam(camaras_sol);
+					}
+					break;
+				case HOVERING :
+					state = "Hovering";
+					break;
+				case LANDING :
+					state = "Landing";
+					break;
+				case LANDED :
+					state = "Landed";
+					break;
 			}
+			ROS_INFO("STATE: %s", state.c_str());
 
 			CURRENT_STATE_ = RECEIVED_STATE_;
 		}
-		
-
-		
-
 
 		/*/ Send Twist
 		if (actions_todo.update_velocityX || actions_todo.update_velocityY || actions_todo.update_velocityZ || 
