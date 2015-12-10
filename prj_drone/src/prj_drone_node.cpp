@@ -6,15 +6,24 @@
 #include "geometry_msgs/Twist.h"
 #include "ardrone_autonomy/Navdata.h"
 #include <cstdlib>
+#include <ctime>
 #include "ar_pose/ARMarkers.h"
 #include "tf/transform_listener.h"
 
 
 // States of the ArDrone
-#define TAKINGOFF 6
-#define HOVERING 3
-#define LANDING 8
+#define UNKNOWN 0
+#define INITIED 1
 #define LANDED 2
+#define FLYING 3
+#define HOVERING 4
+#define TEST 5
+#define TAKINGOFF 6
+#define FLYING2 7
+#define LANDING 8
+#define LOOPING 9
+
+#define TIME_TURNING_ 6
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -54,6 +63,7 @@ bool cam_, turning_;	// Indicates wether the bottom cam is  active or not.
 double marker_z_, marker_y_, marker_x_, yaw_;
 double desired_distance_z_=1, desired_distance_y_=0, desired_distance_x_=0, desired_angle_yaw_=1.57; 
 
+ros::Time time_, prev_time_;
 // CALLBACKS
 void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level) 
 {
@@ -109,6 +119,11 @@ void NavdataCallback(const ardrone_autonomy::Navdata::ConstPtr& msg_Navdata){
 	RECEIVED_STATE_ = msg_Navdata->state;
 }
 
+void callbackTimer(const ros::TimerEvent& tEvent){
+	// Timer callback
+	time_ = tEvent.last_real;
+}
+
 
 // Auxiliary functions
 void tgcam(ros::ServiceClient camaras_sc){
@@ -116,6 +131,7 @@ void tgcam(ros::ServiceClient camaras_sc){
 	camaras_sc.call(msgT);
 	ROS_INFO("Toggle camera!");
 	cam_ = !cam_;
+	turning_ = turning_ && cam_;
 }
 
 // Main function
@@ -137,6 +153,9 @@ int main(int argc, char **argv){
 
 	// Service clients
 	ros::ServiceClient camaras_sol = n.serviceClient <std_srvs::Empty> ("/ardrone/togglecam");
+
+	// Set up a timer
+	ros::Timer timer = n.createTimer(ros::Duration(1), callbackTimer);
 
 	// Set up dynamic reconfigure
 	dynamic_reconfigure::Server<prj_drone::dynamic_paramsConfig> server;
@@ -178,8 +197,8 @@ int main(int argc, char **argv){
 			actions_todo.update_reset=false;
 		}
 
-		geometry_msgs::Twist empty_T;
-		twist_pub.publish(empty_T);
+		//geometry_msgs::Twist empty_T;
+		//twist_pub.publish(empty_T);
 
 		// State transitions
 		if(CURRENT_STATE_ != RECEIVED_STATE_){
@@ -192,13 +211,13 @@ int main(int argc, char **argv){
 						tgcam(camaras_sol);
 					}
 					break;
-				case HOVERING :
+				case FLYING :
 					state = "Hovering";
 					turning_ = true;
+					prev_time_ = time_;
 					break;
 				case LANDING :
 					state = "Landing";
-					turning_ = false;
 					break;
 				case LANDED :
 					state = "Landed";
@@ -209,22 +228,31 @@ int main(int argc, char **argv){
 			CURRENT_STATE_ = RECEIVED_STATE_;
 		}
 
-		if (turning_){
-			double errX, errY, errZ, errYaw, Kx=1, Ky=1, Kz=1, Kyaw=1;
-			geometry_msgs::Twist msg;
 
-			errX = desired_distance_x_-marker_x_;
-			errY = desired_distance_y_-marker_y_;
-			errZ = desired_distance_z_-marker_z_;
-			errYaw = desired_angle_yaw_-yaw_;
+		if(CURRENT_STATE_==FLYING){
+			if (turning_){
+				double errX, errY, errZ, errYaw, Kx=1, Ky=1, Kz=1, Kyaw=1;
+				geometry_msgs::Twist msg;
 
-			msg.linear.y=Kx*errX;
-			msg.linear.x=Ky*errY;
-			msg.linear.z=Kz*errZ;
-			msg.angular.z=Kyaw*errYaw;
-			twist_pub.publish(msg);
+				errX = desired_distance_x_-marker_x_;
+				errY = desired_distance_y_-marker_y_;
+				errZ = desired_distance_z_-marker_z_;
+				errYaw = desired_angle_yaw_-yaw_;
 
+				msg.linear.y=Kx*errX;
+				msg.linear.x=Ky*errY;
+				msg.linear.z=Kz*errZ;
+				msg.angular.z=Kyaw*errYaw;
+				twist_pub.publish(msg);
+
+				if(ros::Time::now()-prev_time_>ros::Duration(TIME_TURNING_)){
+					turning_  = false;
+					prev_time_ = ros::Time::now();
+					ROS_INFO("Now, I'm not turning.");
+				}
+			}
 		}
+		
 
 		/* Send Twist
 		if (actions_todo.update_velocityX || actions_todo.update_velocityY || actions_todo.update_velocityZ || 
