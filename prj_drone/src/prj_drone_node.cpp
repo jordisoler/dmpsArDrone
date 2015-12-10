@@ -23,7 +23,10 @@
 #define LANDING 8
 #define LOOPING 9
 
-#define TIME_TURNING_ 6
+// Duration of some events
+const static ros::Duration TIME_TURNING_ = ros::Duration(6);
+const static ros::Duration TIME_WAITING_ = ros::Duration(2);
+const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -58,10 +61,11 @@ ActionsToDo actions_todo;
 
 int RECEIVED_STATE_, CURRENT_STATE_;
 
-bool cam_, turning_;	// Indicates wether the bottom cam is  active or not.
+bool cam_, turning_, waiting_, performing_, waiting2_, ready2takeoff_;	// Indicates whether the bottom cam is  active or not.
 
 double marker_z_, marker_y_, marker_x_, yaw_;
 double desired_distance_z_=1, desired_distance_y_=0, desired_distance_x_=0, desired_angle_yaw_=1.57; 
+double final_distance_z_=1, final_distance_y_=0, final_distance_x_=0; 
 
 ros::Time time_, prev_time_;
 // CALLBACKS
@@ -168,13 +172,19 @@ int main(int argc, char **argv){
 	CURRENT_STATE_ = LANDED;
 	cam_ = false;
 	turning_ = false;
+	waiting_ = false;
+	performing_ = false;
+	waiting2_ = false;
+	ready2takeoff_ = true;
 
 	// Main loop
 	while (ros::ok()){
 		// Take off
-		if (actions_todo.update_takeoff){
+		if (actions_todo.update_takeoff && ready2takeoff_){
 			std_msgs::Empty msg;
 			chatter_pub.publish(msg);
+			ready2takeoff_=false;
+			ROS_INFO("I want to take off");
 		}
 
 		// Land
@@ -212,9 +222,11 @@ int main(int argc, char **argv){
 					}
 					break;
 				case FLYING :
+					if(CURRENT_STATE_==TAKINGOFF){
+						turning_ = true;
+						prev_time_ = time_;
+					}
 					state = "Hovering";
-					turning_ = true;
-					prev_time_ = time_;
 					break;
 				case LANDING :
 					state = "Landing";
@@ -245,11 +257,45 @@ int main(int argc, char **argv){
 				msg.angular.z=Kyaw*errYaw;
 				twist_pub.publish(msg);
 
-				if(ros::Time::now()-prev_time_>ros::Duration(TIME_TURNING_)){
+				if(ros::Time::now()-prev_time_>TIME_TURNING_){
 					turning_  = false;
+					waiting_ = true;
 					prev_time_ = ros::Time::now();
+					tgcam(camaras_sol);
 					ROS_INFO("Now, I'm not turning.");
 				}
+			}
+			if (waiting_ && ros::Time::now()-prev_time_>TIME_WAITING_){
+				waiting_ = false;
+				performing_ = true;
+				ROS_INFO("Now, I'm starting my movement.");
+			}
+			if (performing_){
+				double errX, errY, errZ, errYaw, Kx=0.3, Ky=1, Kz=1, threshold=0.2;
+				geometry_msgs::Twist msg;
+
+				errX = final_distance_x_-marker_x_;
+				errY = final_distance_y_-marker_y_;
+				errZ = final_distance_z_-marker_z_;
+
+				msg.linear.x=-Kx*errZ;
+				msg.linear.y=Ky*errX;
+				msg.linear.z=Kz*errY;
+				twist_pub.publish(msg);
+				//ROS_INFO("Error: %f\n", errZ);
+
+				if(-errZ<threshold){
+					performing_=false;
+					waiting2_=true;
+					prev_time_=ros::Time::now();
+					ROS_INFO("Now, I have ended the execution of my movement.");
+				}
+			}
+			if (waiting2_ && ros::Time::now()-prev_time_>TIME_WAITING2_){
+				waiting2_=false;
+				std_msgs::Empty msgL;
+				Land_pub.publish(msgL);
+				Land_pub.publish(msgL);
 			}
 		}
 		
