@@ -130,11 +130,10 @@ double Pcontrol(double goal[], double gains[], int numel, ros::Publisher twist_p
     if(numel==4){
     	msg.angular.z=gains[3]*err[3];
     }
-    	
+
     twist_pub.publish(msg);
     return sqrt(sqrErr);
 }
-
 
 /*
  *Trajectory via point generator (Trajectory 1, straight line)
@@ -149,15 +148,18 @@ geometry_msgs::Point traj1()
     geometry_msgs::Point pr;
 
     for(int i=0; i<3; i++){
-	currentPose[i] = (finalPose[i]-initPose[i])/trajtime;
+    	if(dn<trajtime){
+	    currentPose[i] = (finalPose[i]-initPose[i])*dn/trajtime+initPose[i];
+	}else{
+	    currentPose[i] = finalPose[i];
+	}
     }
 
-    pr.x = currentPose[1];
-    pr.y = currentPose[2];
-    pr.z = currentPose[3];
+    pr.x = currentPose[0];
+    pr.y = currentPose[1];
+    pr.z = currentPose[2];
     return pr;
 }
-
 
 /**************************************************
 *	CALLBACKS
@@ -349,9 +351,16 @@ int main(int argc, char **argv)
 		    ROS_INFO("Now, I'm starting my movement.");
 		}
 		if (performing_){
-		    double Ks [] = {0.3, 1, 1};
-		    double threshold=0.1, err;
-		    err = Pcontrol(final_distance, Ks, 3, twist_pub);
+		    double Ks [] = {0.5, 1.2, 1.2};
+		    double xyz [3];
+		    double threshold=0.01, err;
+		    geometry_msgs::Point p = traj1();
+		    xyz[0] = p.x;
+		    xyz[1] = p.y;
+		    xyz[2] = p.z;
+		    err = Pcontrol(xyz, Ks, 3, twist_pub);
+		    
+		    ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
 		    
 		    if(err<threshold){
 			performing_=false;
