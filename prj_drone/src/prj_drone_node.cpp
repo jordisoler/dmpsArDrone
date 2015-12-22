@@ -32,7 +32,7 @@ const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
 struct ActionsToDo
 {
 	bool update_takeoff;
-	bool update_land; 
+	bool update_land;
 	bool update_toggle_cam;
 	bool update_reset;
 	double update_velocityX;
@@ -57,19 +57,19 @@ struct ActionsToDo
 };
 
 // Global  variables
-ActionsToDo actions_todo; 
+ActionsToDo actions_todo;
 
 int RECEIVED_STATE_, CURRENT_STATE_;
 
 bool cam_, turning_, waiting_, performing_, waiting2_, ready2takeoff_;	// Indicates whether the bottom cam is  active or not.
 
 double marker_z_, marker_y_, marker_x_, yaw_;
-double desired_distance_z_=1, desired_distance_y_=0, desired_distance_x_=0, desired_angle_yaw_=1.57; 
-double final_distance_z_=1, final_distance_y_=0, final_distance_x_=0; 
+double desired_distance_z_=1, desired_distance_y_=0, desired_distance_x_=0, desired_angle_yaw_=1.57;
+double final_distance_z_=1, final_distance_y_=0, final_distance_x_=0;
 
 ros::Time time_, prev_time_;
 // CALLBACKS
-void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level) 
+void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level)
 {
 	// Handling dynamic reconfigure changes
 	// Actions
@@ -77,15 +77,15 @@ void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level)
 	config.take_off=false;
 	actions_todo.update_land=config.land;
 	config.land=false;
-	actions_todo.update_toggle_cam=config.cambio_camara; 
+	actions_todo.update_toggle_cam=config.cambio_camara;
 	config.cambio_camara=false;
 	actions_todo.update_reset=config.reset;
 	config.reset=false;
-	actions_todo.update_velocityX=config.velocidadX; 
-	actions_todo.update_velocityY=config.velocidadY; 
-	actions_todo.update_velocityZ=config.velocidadZ; 
-	actions_todo.update_angularX=config.angularX; 
-	actions_todo.update_angularY=config.angularY; 
+	actions_todo.update_velocityX=config.velocidadX;
+	actions_todo.update_velocityY=config.velocidadY;
+	actions_todo.update_velocityZ=config.velocidadZ;
+	actions_todo.update_angularX=config.angularX;
+	actions_todo.update_angularY=config.angularY;
 	actions_todo.update_angularZ=config.angularZ;
 
 	// Desired distances
@@ -96,8 +96,8 @@ void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level)
 	ROS_INFO("Reconfigure Request. X: %f, Y: %f, Z: %f", desired_distance_x_, desired_distance_y_, desired_distance_z_);
 }
 
-
-void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message){
+void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message)
+{
 	// Handling marker data
 	if  (message->markers.size()>0)
 	{
@@ -105,7 +105,7 @@ void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message){
 		marker_z_=message->markers[0].pose.pose.position.z;
 		marker_y_=message->markers[0].pose.pose.position.y;
 		marker_x_=message->markers[0].pose.pose.position.x;
-		
+
 		tf::Quaternion qt;
 		tf::quaternionMsgToTF(message->markers[0].pose.pose.orientation,qt);
 		tf::Matrix3x3(qt).getRPY(roll, pitch, yaw_);
@@ -117,20 +117,26 @@ void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message){
 	}
 }
 
-
-void NavdataCallback(const ardrone_autonomy::Navdata::ConstPtr& msg_Navdata){
+void NavdataCallback(const ardrone_autonomy::Navdata::ConstPtr& msg_Navdata)
+{
 	// Getting ArDrone state
 	RECEIVED_STATE_ = msg_Navdata->state;
 }
 
-void callbackTimer(const ros::TimerEvent& tEvent){
+void callbackTimer(const ros::TimerEvent& tEvent)
+{
 	// Timer callback
 	time_ = tEvent.last_real;
 }
 
 
 // Auxiliary functions
-void tgcam(ros::ServiceClient camaras_sc){
+
+/*
+ *Toggle the camera tacking into account the flags cam_ and turning_
+ */
+void tgcam(ros::ServiceClient camaras_sc)
+{
 	std_srvs::Empty msgT;
 	camaras_sc.call(msgT);
 	ROS_INFO("Toggle camera!");
@@ -139,7 +145,8 @@ void tgcam(ros::ServiceClient camaras_sc){
 }
 
 // Main function
-int main(int argc, char **argv){
+int main(int argc, char **argv)
+{
 	// Set up ROS node
 	ros::init(argc, argv, "prj_drone_node");
 	ros::NodeHandle n;
@@ -178,7 +185,8 @@ int main(int argc, char **argv){
 	ready2takeoff_ = true;
 
 	// Main loop
-	while (ros::ok()){
+	while (ros::ok())
+	{
 		// Take off
 		if (actions_todo.update_takeoff && ready2takeoff_){
 			std_msgs::Empty msg;
@@ -196,7 +204,7 @@ int main(int argc, char **argv){
 		// Toggle camera
 		if (actions_todo.update_toggle_cam){
 			tgcam(camaras_sol);
-			actions_todo.update_toggle_cam=false;	
+			actions_todo.update_toggle_cam=false;
 		}
 
 		// Reset ArDrone
@@ -207,8 +215,6 @@ int main(int argc, char **argv){
 			actions_todo.update_reset=false;
 		}
 
-		//geometry_msgs::Twist empty_T;
-		//twist_pub.publish(empty_T);
 
 		// State transitions
 		if(CURRENT_STATE_ != RECEIVED_STATE_){
@@ -298,10 +304,10 @@ int main(int argc, char **argv){
 				Land_pub.publish(msgL);
 			}
 		}
-		
+
 
 		/* Send Twist
-		if (actions_todo.update_velocityX || actions_todo.update_velocityY || actions_todo.update_velocityZ || 
+		if (actions_todo.update_velocityX || actions_todo.update_velocityY || actions_todo.update_velocityZ ||
 			actions_todo.update_angularZ){
 			geometry_msgs::Twist msgV;
 			msgV.linear.x= actions_todo.update_velocityX;
@@ -310,6 +316,7 @@ int main(int argc, char **argv){
 			msgV.angular.z= actions_todo.update_angularZ;
 			twist_pub.publish(msgV);
 		}*/
+
 
 		ros::spinOnce();
 		loop_rate.sleep();
