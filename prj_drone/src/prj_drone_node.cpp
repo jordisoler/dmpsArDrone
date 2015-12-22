@@ -4,6 +4,7 @@
 #include "prj_drone/dynamic_paramsConfig.h"
 #include "std_srvs/Empty.h"
 #include "geometry_msgs/Twist.h"
+#include "geometry_msgs/Point.h"
 #include "ardrone_autonomy/Navdata.h"
 #include <cstdlib>
 #include <ctime>
@@ -63,12 +64,71 @@ int RECEIVED_STATE_, CURRENT_STATE_;
 
 bool cam_, turning_, waiting_, performing_, waiting2_, ready2takeoff_;	// Indicates whether the bottom cam is  active or not.
 
-double marker_z_, marker_y_, marker_x_, yaw_;
+double _z_, _y_, _x_, yaw_;
 double desired_distance_z_=1, desired_distance_y_=0, desired_distance_x_=0, desired_angle_yaw_=1.57;
-double final_distance_z_=1, final_distance_y_=0, final_distance_x_=0;
+double final_distance_z_=1, final_distance_y_=0, final_distance_x_=2;
 
-ros::Time time_, prev_time_;
-// CALLBACKS
+ros::Time time_, prev_time_, t0_;
+
+/**************************************************
+*	AUXILLIARY FUNCTIONS
+**************************************************/
+/*
+ *Toggle the camera tacking into account the flags cam_ and turning_
+ */
+void tgcam(ros::ServiceClient camaras_sc)
+{
+	std_srvs::Empty msgT;
+	camaras_sc.call(msgT);
+	ROS_INFO("Toggle camera!");
+	cam_ = !cam_;
+	turning_ = turning_ && cam_;
+}
+
+/*
+ *Get current pose from the markers (assuming miniproject_world)
+ */
+void inverseKinematics(double mx, double my, double mz)
+{
+    if(cam_){
+	_x_ = mx;
+	_y_ = my;
+	_z_ = mz;
+    }else{
+	_x_ = 3-mz;
+	_y_ = mx;
+	_z_ = 1+my;
+	ROS_INFO("Pose: x=%f, y=%f, z=%f", _x_,_y_,_z_);
+	//ROS_INFO("Pose: x=%f, y=%f, z=%f", mx,my,mz);
+    }
+}
+
+/*
+ *Trajectory via point generator (Trajectory 1, straight line)
+ */
+geometry_msgs::Point traj1()
+{
+    double dn = ros::Duration(ros::Time::now()-t0_).toSec();
+    double trajtime = 3;
+    double initPose [] = {0, 0, 1};
+    double finalPose [] = {2, 0, 1};
+    double currentPose [3];
+    geometry_msgs::Point pr;
+
+    for(int i=0; i<3; i++){
+	currentPose[i] = (finalPose[i]-initPose[i])/trajtime;
+    }
+
+    pr.x = currentPose[1];
+    pr.y = currentPose[2];
+    pr.z = currentPose[3];
+    return pr;
+}
+
+
+/**************************************************
+*	CALLBACKS
+**************************************************/
 void dynrec_callback(prj_drone::dynamic_paramsConfig &config, uint32_t level)
 {
 	// Handling dynamic reconfigure changes
@@ -102,18 +162,15 @@ void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message)
 	if  (message->markers.size()>0)
 	{
 		double roll, pitch;
-		marker_z_=message->markers[0].pose.pose.position.z;
-		marker_y_=message->markers[0].pose.pose.position.y;
-		marker_x_=message->markers[0].pose.pose.position.x;
+		double marker_z_=message->markers[0].pose.pose.position.z;
+		double marker_y_=message->markers[0].pose.pose.position.y;
+		double marker_x_=message->markers[0].pose.pose.position.x;
 
 		tf::Quaternion qt;
 		tf::quaternionMsgToTF(message->markers[0].pose.pose.orientation,qt);
 		tf::Matrix3x3(qt).getRPY(roll, pitch, yaw_);
 
-		//double error=sqrt(pow(marker_x_-desired_distance_x_,2)+pow(marker_y_-desired_distance_y_,2)+pow(marker_z_-desired_distance_z_,2));
-
-		//ROS_INFO("I heard %f %f %f", marker_x_,marker_y_,marker_z_);
-		//ROS_INFO("Error modul:  %f", error);
+		inverseKinematics(marker_x_,marker_y_,marker_z_);
 	}
 }
 
@@ -129,22 +186,9 @@ void callbackTimer(const ros::TimerEvent& tEvent)
 	time_ = tEvent.last_real;
 }
 
-
-// Auxiliary functions
-
-/*
- *Toggle the camera tacking into account the flags cam_ and turning_
- */
-void tgcam(ros::ServiceClient camaras_sc)
-{
-	std_srvs::Empty msgT;
-	camaras_sc.call(msgT);
-	ROS_INFO("Toggle camera!");
-	cam_ = !cam_;
-	turning_ = turning_ && cam_;
-}
-
-// Main function
+/**************************************************
+*	MAIN FUNCTION
+**************************************************/
 int main(int argc, char **argv)
 {
 	// Set up ROS node
@@ -252,9 +296,9 @@ int main(int argc, char **argv)
 				double errX, errY, errZ, errYaw, Kx=1, Ky=1, Kz=1, Kyaw=1;
 				geometry_msgs::Twist msg;
 
-				errX = desired_distance_x_-marker_x_;
-				errY = desired_distance_y_-marker_y_;
-				errZ = desired_distance_z_-marker_z_;
+				errX = desired_distance_x_-_x_;
+				errY = desired_distance_y_-_y_;
+				errZ = desired_distance_z_-_z_;
 				errYaw = desired_angle_yaw_-yaw_;
 
 				msg.linear.y=Kx*errX;
@@ -274,23 +318,25 @@ int main(int argc, char **argv)
 			if (waiting_ && ros::Time::now()-prev_time_>TIME_WAITING_){
 				waiting_ = false;
 				performing_ = true;
+				t0_ = ros::Time::now();
 				ROS_INFO("Now, I'm starting my movement.");
 			}
 			if (performing_){
-				double errX, errY, errZ, errYaw, Kx=0.3, Ky=1, Kz=1, threshold=0.2;
+				double errX, errY, errZ, errYaw, Kx=0.3, Ky=1, Kz=1, threshold=0.1;
 				geometry_msgs::Twist msg;
 
-				errX = final_distance_x_-marker_x_;
-				errY = final_distance_y_-marker_y_;
-				errZ = final_distance_z_-marker_z_;
+				errX = final_distance_x_-_x_;
+				errY = final_distance_y_-_y_;
+				errZ = final_distance_z_-_z_;
 
-				msg.linear.x=-Kx*errZ;
-				msg.linear.y=Ky*errX;
-				msg.linear.z=Kz*errY;
+				msg.linear.x=Kx*errX;
+				msg.linear.y=Ky*errY;
+				msg.linear.z=Kz*errZ;
+				
 				twist_pub.publish(msg);
-				//ROS_INFO("Error: %f\n", errZ);
+				//ROS_INFO("Error: %f\n", errX);
 
-				if(-errZ<threshold){
+				if(errX<threshold){
 					performing_=false;
 					waiting2_=true;
 					prev_time_=ros::Time::now();
@@ -304,20 +350,6 @@ int main(int argc, char **argv)
 				Land_pub.publish(msgL);
 			}
 		}
-
-
-		/* Send Twist
-		if (actions_todo.update_velocityX || actions_todo.update_velocityY || actions_todo.update_velocityZ ||
-			actions_todo.update_angularZ){
-			geometry_msgs::Twist msgV;
-			msgV.linear.x= actions_todo.update_velocityX;
-			msgV.linear.y= actions_todo.update_velocityY;
-			msgV.linear.z= actions_todo.update_velocityZ;
-			msgV.angular.z= actions_todo.update_angularZ;
-			twist_pub.publish(msgV);
-		}*/
-
-
 		ros::spinOnce();
 		loop_rate.sleep();
 	}
@@ -329,3 +361,5 @@ int main(int argc, char **argv)
 
 	return 0;
 }
+
+
