@@ -9,8 +9,10 @@ The ROS package is being developped in Ubuntu 14.04/indigo and assumes that the 
 ```shell
 sudo apt-get install ros-ROSDISTRO-ardrone-autonomy
 ```
-- ar_tools for ROS:
-  Can be found in https://github.com/ar-tools/ar_tools.git
+- ar_tools ROS package:
+  The cource code can be found in https://github.com/ar-tools/ar_tools.git
+- dmp ROS package:
+  The source code can be found in https://github.com/sniekum/dmp.git
 
 This repository is supposed to be cloned within a the `src/` folder of a catkin workspace.
 
