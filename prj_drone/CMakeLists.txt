@@ -74,9 +74,9 @@ find_package(catkin REQUIRED COMPONENTS
 
 
 ## generate_dynamic_reconfigure_options(cfg/dynamic_params.cfg) #es el nom del meu fitxer de configuració
-############################# 
+#############################
 # Dynamic Reconfigure stuff #
-############################# 
+#############################
 generate_dynamic_reconfigure_options(cfg/dynamic_params.cfg)		#es el nom del meu fitxer de configuració
 
 
@@ -105,13 +105,14 @@ catkin_package(
 ## Your package locations should be listed before other locations
 # include_directories(include)
 include_directories(
+    include/prj_drone/
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(prj_drone
-#   src/${PROJECT_NAME}/prj_drone.cpp
-# )
+ add_library(trajectory
+   src/trajectory.cpp
+ )
 
 ## Declare a cpp executable
 add_executable(prj_drone_node src/prj_drone_node.cpp)

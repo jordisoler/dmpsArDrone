@@ -10,6 +10,7 @@
 #include <ctime>
 #include "ar_pose/ARMarkers.h"
 #include "tf/transform_listener.h"
+#include "trajectory.h"
 
 
 // States of the ArDrone
@@ -359,9 +360,9 @@ int main(int argc, char **argv)
 		    xyz[1] = p.y;
 		    xyz[2] = p.z;
 		    err = Pcontrol(xyz, Ks, 3, twist_pub);
-		    
+
 		    ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
-		    
+
 		    if(err<threshold){
 			performing_=false;
 			waiting2_=true;
