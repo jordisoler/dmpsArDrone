@@ -1,6 +1,9 @@
 #ifndef __PRJ_DRONE_TRAJECTORY_H
 #define __PRJ_DRONE_TRAJECTORY_H
 
+#include <ros/ros.h>
+#include "dmp/LearnDMPFromDemo.h"
+
 /*
  *Class containing spatial coordinates. No extra functionalities yet.
  */
@@ -38,6 +41,7 @@ public:
     float getTime(){return ptime;}
     coords getPose(){return position;}
     coords getVelocity(){return velocity;}
+    std::vector<float> getXYZ();
 };
 
 /*
@@ -62,7 +66,9 @@ public:
     void addPoint(viapoint vp, int i);
     void removePoint(int i);
     void removeLast();
+    dmp::LearnDMPFromDemo learn(float gains[3], int nbf, ros::NodeHandle n);
 };
+
 
 #endif
 
