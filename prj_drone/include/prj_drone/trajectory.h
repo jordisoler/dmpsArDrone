@@ -3,6 +3,9 @@
 
 #include <ros/ros.h>
 #include "dmp/LearnDMPFromDemo.h"
+#include "dmp/SetActiveDMP.h"
+#include "dmp/GetDMPPlan.h"
+
 
 /*
  *Class containing spatial coordinates. No extra functionalities yet.
@@ -54,6 +57,7 @@ private:
 public:
     trajectory();
     trajectory(std::vector<viapoint> trajini);
+    trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, float goal[3],float goal_threshold[3], float seg_length, float tau, float dt, int integrate_iter, ros::NodeHandle n);
 
     std::vector<float> getTimes();
     std::vector<coords> getPoses();
