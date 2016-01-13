@@ -12,6 +12,12 @@
 #include "tf/transform_listener.h"
 #include <trajectory.h>
 
+#include <fstream>
+#include <string.h>
+#include <iostream>
+#include <cstdlib>
+
+
 using namespace trajj;
 
 // States of the ArDrone
@@ -242,6 +248,24 @@ void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message)
 	}
 }
 
+void writeData(std::vector<double> in)
+{
+	// Saving Data
+	std::ofstream fileWriter;
+	fileWriter.open("/home/jordi/catkin_ws/src/dmpsArdrone/projectData.txt",  std::ios::out);
+	if (fileWriter.fail()){
+		ROS_ERROR("The file could not be opened.");
+	}else{
+		for(std::vector<double>::iterator it = in.begin(); it!=in.end(); ++it){
+			double data = *it;
+			fileWriter<<data;
+			fileWriter<<';';
+		}
+		fileWriter<<'\n';
+		fileWriter.close();
+	}
+}
+
 void NavdataCallback(const ardrone_autonomy::Navdata::ConstPtr& msg_Navdata)
 {
 	// Getting ArDrone state
@@ -259,7 +283,6 @@ void callbackTimer(const ros::TimerEvent& tEvent)
 **************************************************/
 int main(int argc, char **argv)
 {
-	ROS_INFO("HOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!");
 	// Set up ROS node
 	ros::init(argc, argv, "prj_drone_node");
 	ros::NodeHandle n;
@@ -319,8 +342,14 @@ int main(int argc, char **argv)
 	// Main loop
 	while (ros::ok())
 	{
-		//double tempsDara = (ros::Time::now()-t_start).toSec();
-		//ROS_INFO("Han passat %f segons. Duraci\'o de 5 segons: %f.",tempsDara, ros::Duration(5).toSec());
+		// Logging position data
+		std::vector<double> data (4,0);
+		data.at(0) = ros::Time::now().toSec();
+		for (int i=0; i<3; ++i){
+			data.at(i+1)=pose_[i];
+		}
+		writeData(data);
+
 
 	    // Take off
 	    if ((ros::Time::now()-t_start>ros::Duration(10) || actions_todo.update_takeoff) && ready2takeoff_){
