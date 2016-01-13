@@ -16,6 +16,7 @@
   <include file="$(find ardrone_sim)/launch/ardrone_sim.launch"/>
   <node name="rqt_reconfigure" pkg ="rqt_reconfigure" type = "rqt_reconfigure"/>
   <node name="viewer" pkg="prj_drone" type="rqt_view.sh"/>
+  <node name="dmp" pkg="dmp" type="dmp_server" respawn="false" output="screen"/>
   <!-- . -->
 
   <node name="prj_drone_node" pkg ="prj_drone" type="prj_drone_node" output="screen">

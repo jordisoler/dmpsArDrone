@@ -10,8 +10,9 @@
 #include <ctime>
 #include "ar_pose/ARMarkers.h"
 #include "tf/transform_listener.h"
-#include "trajectory.h"
+#include <trajectory.h>
 
+using namespace trajj;
 
 // States of the ArDrone
 #define UNKNOWN 0
@@ -29,6 +30,7 @@
 const static ros::Duration TIME_TURNING_ = ros::Duration(6);
 const static ros::Duration TIME_WAITING_ = ros::Duration(2);
 const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
+//trajj::trajectory trajjj;
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -94,15 +96,15 @@ void tgcam(ros::ServiceClient camaras_sc)
 void inverseKinematics(double mx, double my, double mz)
 {
     if(cam_){
-	pose_[1] = mx;
-	pose_[0] = my;
-	pose_[2] = mz;
+		pose_[1] = mx;
+		pose_[0] = my;
+		pose_[2] = mz;
     }else{
-	pose_[0] = 3-mz;
-	pose_[1] = mx;
-	pose_[2] = 1+my;
-	ROS_INFO("Pose: x=%f, y=%f, z=%f", pose_[0],pose_[1],pose_[2]);
-	//ROS_INFO("Pose: x=%f, y=%f, z=%f", mx,my,mz);
+		pose_[0] = 3-mz;
+		pose_[1] = mx;
+		pose_[2] = 1+my;
+		ROS_INFO("Pose: x=%f, y=%f, z=%f", pose_[0],pose_[1],pose_[2]);
+		//ROS_INFO("Pose: x=%f, y=%f, z=%f", mx,my,mz);
     }
 }
 
@@ -139,27 +141,53 @@ double Pcontrol(double goal[], double gains[], int numel, ros::Publisher twist_p
 /*
  *Trajectory via point generator (Trajectory 1, straight line)
  */
-geometry_msgs::Point traj1()
+geometry_msgs::Point linTraj(double trajtime, double initPose[3], double finalPose[3], ros::Duration du)
 {
-    double dn = ros::Duration(ros::Time::now()-t0_).toSec();
-    double trajtime = 3;
-    double initPose [] = {0, 0, 1};
-    double finalPose [] = {2, 0, 1};
-    double currentPose [3];
+	double currentPose[3];
+    double dn = du.toSec();
     geometry_msgs::Point pr;
 
     for(int i=0; i<3; i++){
     	if(dn<trajtime){
-	    currentPose[i] = (finalPose[i]-initPose[i])*dn/trajtime+initPose[i];
-	}else{
-	    currentPose[i] = finalPose[i];
-	}
+	    	currentPose[i] = (finalPose[i]-initPose[i])*dn/trajtime+initPose[i];
+		}else{
+			currentPose[i] = finalPose[i];
+		}
     }
 
     pr.x = currentPose[0];
     pr.y = currentPose[1];
     pr.z = currentPose[2];
     return pr;
+}
+
+geometry_msgs::Point traj1()
+{
+    ros::Time t = ros::Time::now();
+    double trajtime = 3;
+    double initPose [] = {0, 0, 1};
+    double finalPose [] = {2, 0, 1};
+    return linTraj(trajtime, initPose, finalPose, t-t0_);
+}
+
+trajectory getStraightTraj(double initPose[3], double finalPose[3], double nsteps, ros::Duration du, ros::Time initTime)
+{
+    coords iniCoords = coords(initPose[0], initPose[1], initPose[2]);
+    coords iniVel = coords(0,0,0);
+    viapoint iniVp = viapoint(initTime.toSec(),iniCoords,iniVel);
+    std::vector<viapoint> vp (1, iniVp);
+    
+    trajectory traj=trajectory(vp);
+    double dus = du.toSec();
+    for(int i=1; i<nsteps; i=i+1){
+    	ros::Duration currentTime = ros::Duration(i*dus/nsteps);
+    	geometry_msgs::Point pi = linTraj(dus, initPose, finalPose, currentTime);
+    	coords ci = coords(pi);
+    	coords veli = coords(0,0,0);
+    	viapoint vi = viapoint((initTime+currentTime).toSec(), ci, veli);
+    	traj.addPoint(vi);
+    }
+    return traj;
 }
 
 /**************************************************
@@ -254,6 +282,24 @@ int main(int argc, char **argv)
 
 	f = boost::bind(&dynrec_callback, _1, _2);
 	server.setCallback(f);
+
+	// Get deomnstration trajectory
+	double initPose[3] = {0, 0, 1};
+	double finalPose[3] = {2, 0, 1};
+	ros::Time initTime = ros::Time(ros::Time(3.0));
+	ros::Duration tElapsed = ros::Duration(3.0);
+	trajectory tr = getStraightTraj(initPose, finalPose, 6, tElapsed, initTime);
+
+	// Get DMP
+	float gains[3] = {1, 1, 1};
+	int nbf = 20;
+	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
+/*
+	// Get resultant trajectory
+	viapoint initVp = viapoint(initTime.toSec(), coords(initPose[0], initPose[1], initPose[2]), coords(0,0,0));
+	float goal[3] = {2, 0, 1};
+	float gtolerance[3] = {0.1, 0.1, 0.1};
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tElapsed.toSec(), 1, n);*/
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
