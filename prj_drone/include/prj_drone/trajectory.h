@@ -46,7 +46,7 @@ public:
     float getTime(){return ptime;}
     coords getPose(){return position;}
     coords getVelocity(){return velocity;}
-    std::vector<float> getXYZ();
+    std::vector<double> getXYZ();
 };
 
 /*
@@ -59,7 +59,7 @@ private:
 public:
     trajectory();
     trajectory(std::vector<viapoint> trajini);
-    trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, float goal[3],float goal_threshold[3], float seg_length, float tau, float dt, int integrate_iter, ros::NodeHandle n);
+    trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, double goal[3], double goal_threshold[3], double seg_length, double tau, double dt, int integrate_iter, ros::NodeHandle n);
 
     std::vector<float> getTimes();
     std::vector<coords> getPoses();
@@ -109,7 +109,7 @@ coords::coords(float x_, float y_, float z_, float roll_, float pitch_, float ya
 
 std::vector<float> coords::getPose()
 {
-    std::vector<float> out;
+    std::vector<float> out (3,0);
     out.at(0) = x;
     out.at(1) = y;
     out.at(2) = z;
@@ -118,18 +118,19 @@ std::vector<float> coords::getPose()
 
 
 //VIAPOINT
-viapoint::viapoint(float ti, coords pos, coords vel)
+viapoint::viapoint(float ti_, coords pos_, coords vel_)
 {
-    ptime = ti;
-    pos = pos;
-    velocity = vel;
+    ptime = ti_;
+    position = pos_;
+    velocity = vel_;
 }
-std::vector<float> viapoint::getXYZ()
+std::vector<double> viapoint::getXYZ()
 {
-    std::vector<float> out;
-    out.push_back(position.getX());
-    out.push_back(position.getY());
-    out.push_back(position.getZ());
+    std::vector<double> out (3,0);
+    out.at(0)=position.getX();
+    out.at(1)=position.getY();
+    out.at(2)=position.getZ();
+    ROS_INFO("Position = (%f, %f,  %f)", position.getX(), position.getY(), position.getZ());
     return out;
 }
 
@@ -153,7 +154,7 @@ trajectory::trajectory(std::vector<viapoint> trajini)
  *    - float dt: Time resolution of the plan in seconds
  *    - int integrate_iter: Internal parameter. Usually 1.
  */
-trajectory::trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, float goal[3],float goal_threshold[3], float seg_length, float tau, float dt, int integrate_iter, ros::NodeHandle n)
+trajectory::trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, double goal[3], double goal_threshold[3], double seg_length, double tau, double dt, int integrate_iter, ros::NodeHandle n)
 {
     // Set Active DMP
     ros::ServiceClient srv_client_set = n.serviceClient<dmp::SetActiveDMP>("set_active_dmp");
@@ -162,25 +163,25 @@ trajectory::trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, float goal[3],
     srv_set.request.dmp_list = dmp_.response.dmp_list;
 
     if(srv_client_set.call(srv_set)){
-    ROS_INFO("Set new DMP active!");
+        ROS_INFO("Set new DMP active!");
     }else{
-    ROS_ERROR("Could not set the DMP active.");
+        ROS_ERROR("Could not set the DMP active.");
     }
 
     // Construct service message
     ros::ServiceClient srv_client = n.serviceClient<dmp::GetDMPPlan>("get_dmp_plan");
     dmp::GetDMPPlan srv;
 
-    std::vector<double> goal_, goal_threshold_, x_0d, veld;
-    std::vector<float> x_0 = init.getXYZ();
+    std::vector<double> goal_ (3,0), goal_threshold_ (3,0), x_0d (3,0), veld (3,0);
+    std::vector<double> x_0 = init.getXYZ();
     std::vector<float> x_dot_0 = init.getVelocity().getPose();
     float t_0 = init.getTime();
     for(int i=0;  i<3; i++){
-    goal_.at(i) = (double)goal[i];
-    goal_threshold_.at(i) = (double)goal_threshold[i];
-    x_0d.at(i) = (double)x_0.at(i);
-    veld.at(i) = (double)x_dot_0.at(i);
-    //vel.pop_back();
+        goal_.at(i) = goal[i];
+        goal_threshold_.at(i) = goal_threshold[i];
+        x_0d.at(i) = x_0.at(i);
+        veld.at(i) = x_dot_0.at(i);
+        //vel.pop_back();
     }
     srv.request.x_0 = x_0d;
     srv.request.x_dot_0 = veld;
@@ -204,7 +205,7 @@ trajectory::trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, float goal[3],
         viapoint vi = viapoint(dmptraj.times.at(i), cs, csv);
     }
     }else{
-    ROS_ERROR("Could not get the trajectory form the DMP server.");
+        ROS_ERROR("Could not get the trajectory from the DMP server.");
     }
 }
 
@@ -255,13 +256,18 @@ std::vector<float> trajectory::getZ()
 
 viapoint trajectory::getPoint(int i){ return traj.at(i);}
 
-void trajectory::addPoint(viapoint vp){ traj.push_back(vp);}
+void trajectory::addPoint(viapoint vp){ 
+    coords cpose = vp.getPose();
+    ROS_INFO("Add point function: Pose introduced: (%f, %f, %f)", cpose.getX(), cpose.getY(), cpose.getZ());
+    traj.push_back(vp);
+}
 
 void trajectory::addPoint(viapoint vp, int i){ traj.at(i)=vp;}
 
 void trajectory::removePoint(int i){ traj.erase(traj.begin()+i);}
 
 void trajectory::removeLast(){ traj.pop_back();}
+
 
 dmp::LearnDMPFromDemo trajectory::learn(float gains[], int nbf, ros::NodeHandle n)
 {
@@ -274,19 +280,16 @@ dmp::LearnDMPFromDemo trajectory::learn(float gains[], int nbf, ros::NodeHandle 
     for(int i=0; i<traj.size(); i++){
         dmp::DMPPoint pt;
         float ptf [3];
-        std::vector<float> xyz = traj.at(i).getXYZ();
-        for(int j=0; j<3; j++){
-            pt.positions[j] = xyz.at(j);
-        }/*
-        tr.points[i] = pt;
-        tr.times[i] = times_traj.at(i);*/
+        pt.positions = traj.at(i).getXYZ();
+        tr.points.push_back(pt);
+        tr.times.push_back(times_traj.at(i));
     }
-/*
+
     std::vector<double> dgains (3,0);
     std::vector<double> kgains (3,0);
     for(int i=0; i<3; i++){
         kgains.at(i)=gains[i];
-    dgains.at(i)=2*sqrt(gains[i]);
+        dgains.at(i)=2*sqrt(gains[i]);
     }
 
     srv.request.demo = tr;
@@ -295,10 +298,10 @@ dmp::LearnDMPFromDemo trajectory::learn(float gains[], int nbf, ros::NodeHandle 
     srv.request.num_bases = nbf;
 
     if(srv_client.call(srv)){
-    ROS_INFO("DMP received from server!");
+        ROS_INFO("DMP received from server!");
     }else{
-    ROS_ERROR("Could not get the DMP from the server.");
-    }*/
+        ROS_ERROR("Could not get the DMP from the server.");
+    }
     return srv;
 }
 

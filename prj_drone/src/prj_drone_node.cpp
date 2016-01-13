@@ -73,7 +73,7 @@ double desired_distance [] = {0, 0, 1};
 double desired_angle_yaw_ = 1.57, yaw_;
 double final_distance [] = {2, 0, 1};
 
-ros::Time time_, prev_time_, t0_;
+ros::Time time_, prev_time_, t0_, t_start;
 
 /**************************************************
 *	AUXILLIARY FUNCTIONS
@@ -184,7 +184,11 @@ trajectory getStraightTraj(double initPose[3], double finalPose[3], double nstep
     	geometry_msgs::Point pi = linTraj(dus, initPose, finalPose, currentTime);
     	coords ci = coords(pi);
     	coords veli = coords(0,0,0);
-    	viapoint vi = viapoint((initTime+currentTime).toSec(), ci, veli);
+    	ros::Time timeAsTime = initTime+currentTime;
+    	float timeInSeconds = timeAsTime.toSec();
+    	viapoint vi = viapoint(timeInSeconds, ci, veli);
+    	
+    	ROS_INFO("Send point to trajectory. Time: %f, Point: (%f, %f, %f), Velocity: (%f, %f, %f)",timeInSeconds, ci.getX(), ci.getY(), ci.getZ(), veli.getX(), veli.getY(),  veli.getZ() );
     	traj.addPoint(vi);
     }
     return traj;
@@ -255,6 +259,7 @@ void callbackTimer(const ros::TimerEvent& tEvent)
 **************************************************/
 int main(int argc, char **argv)
 {
+	ROS_INFO("HOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOLAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!");
 	// Set up ROS node
 	ros::init(argc, argv, "prj_drone_node");
 	ros::NodeHandle n;
@@ -288,18 +293,18 @@ int main(int argc, char **argv)
 	double finalPose[3] = {2, 0, 1};
 	ros::Time initTime = ros::Time(ros::Time(3.0));
 	ros::Duration tElapsed = ros::Duration(3.0);
-	trajectory tr = getStraightTraj(initPose, finalPose, 6, tElapsed, initTime);
+	trajectory tr = getStraightTraj(initPose, finalPose, 11, tElapsed, initTime);
 
 	// Get DMP
 	float gains[3] = {1, 1, 1};
 	int nbf = 20;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
-/*
+
 	// Get resultant trajectory
 	viapoint initVp = viapoint(initTime.toSec(), coords(initPose[0], initPose[1], initPose[2]), coords(0,0,0));
-	float goal[3] = {2, 0, 1};
-	float gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tElapsed.toSec(), 1, n);*/
+	double goal[3] = {2, 0, 1};
+	double gtolerance[3] = {0.1, 0.1, 0.1};
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tElapsed.toSec(), 1, n);
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
@@ -309,12 +314,16 @@ int main(int argc, char **argv)
 	performing_ = false;
 	waiting2_ = false;
 	ready2takeoff_ = true;
+	t_start = ros::Time::now();
 
 	// Main loop
 	while (ros::ok())
 	{
+		//double tempsDara = (ros::Time::now()-t_start).toSec();
+		//ROS_INFO("Han passat %f segons. Duraci\'o de 5 segons: %f.",tempsDara, ros::Duration(5).toSec());
+
 	    // Take off
-	    if (actions_todo.update_takeoff && ready2takeoff_){
+	    if ((ros::Time::now()-t_start>ros::Duration(10) || actions_todo.update_takeoff) && ready2takeoff_){
 		std_msgs::Empty msg;
 		chatter_pub.publish(msg);
 		ready2takeoff_=false;
@@ -407,7 +416,7 @@ int main(int argc, char **argv)
 		    xyz[2] = p.z;
 		    err = Pcontrol(xyz, Ks, 3, twist_pub);
 
-		    ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
+		    //ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
 
 		    if(err<threshold){
 			performing_=false;
