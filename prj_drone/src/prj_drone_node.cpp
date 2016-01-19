@@ -36,7 +36,9 @@ using namespace trajj;
 const static ros::Duration TIME_TURNING_ = ros::Duration(6);
 const static ros::Duration TIME_WAITING_ = ros::Duration(2);
 const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
-//trajj::trajectory trajjj;
+
+const std::string logfile = "/home/jordi/catkin_ws/src/dmpsArdrone/projectData.csv";
+const std::string posfile = "/home/jordi/catkin_ws/src/dmpsArdrone/trajectoryData.csv";
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -94,6 +96,35 @@ void tgcam(ros::ServiceClient camaras_sc)
 	ROS_INFO("Toggle camera!");
 	cam_ = !cam_;
 	turning_ = turning_ && cam_;
+}
+
+void writeData(std::vector<double> in, std::string fileName)
+{
+	// Saving Data
+	std::ofstream fileWriter;
+	fileWriter.open(fileName.c_str(),  std::ios::app);
+	if (fileWriter.fail()){
+		ROS_ERROR("The file could not be opened.");
+	}else{
+		for(std::vector<double>::iterator it = in.begin(); it!=in.end(); ++it){
+			double data = *it;
+			fileWriter<<data;
+			fileWriter<<';';
+		}
+		fileWriter<<'\n';
+		fileWriter.close();
+	}
+}
+
+void logData(std::string fileName)
+{
+		// Logging position data
+		std::vector<double> data (4,0);
+		data.at(0) = ros::Time::now().toSec();
+		for (int i=0; i<3; ++i){
+			data.at(i+1)=pose_[i];
+		}
+		writeData(data, fileName);
 }
 
 /*
@@ -248,24 +279,6 @@ void MarkerCallback(const ar_pose::ARMarkers::ConstPtr& message)
 	}
 }
 
-void writeData(std::vector<double> in)
-{
-	// Saving Data
-	std::ofstream fileWriter;
-	fileWriter.open("/home/jordi/catkin_ws/src/dmpsArdrone/projectData.txt",  std::ios::out);
-	if (fileWriter.fail()){
-		ROS_ERROR("The file could not be opened.");
-	}else{
-		for(std::vector<double>::iterator it = in.begin(); it!=in.end(); ++it){
-			double data = *it;
-			fileWriter<<data;
-			fileWriter<<';';
-		}
-		fileWriter<<'\n';
-		fileWriter.close();
-	}
-}
-
 void NavdataCallback(const ardrone_autonomy::Navdata::ConstPtr& msg_Navdata)
 {
 	// Getting ArDrone state
@@ -342,13 +355,7 @@ int main(int argc, char **argv)
 	// Main loop
 	while (ros::ok())
 	{
-		// Logging position data
-		std::vector<double> data (4,0);
-		data.at(0) = ros::Time::now().toSec();
-		for (int i=0; i<3; ++i){
-			data.at(i+1)=pose_[i];
-		}
-		writeData(data);
+		logData(logfile);
 
 
 	    // Take off
@@ -444,6 +451,7 @@ int main(int argc, char **argv)
 		    xyz[1] = p.y;
 		    xyz[2] = p.z;
 		    err = Pcontrol(xyz, Ks, 3, twist_pub);
+		    logData(posfile);
 
 		    //ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
 
