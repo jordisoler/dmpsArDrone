@@ -30,6 +30,14 @@ public:
     float getY(){return y;}
     float getZ(){return z;}
     float getYaw(){return yaw;}
+    geometry_msgs::Point toMsgPoint()
+    {
+        geometry_msgs::Point p;
+        p.x = x;
+        p.y = y;
+        p.z = z;
+        return p;
+    }
 };
 
 /*
@@ -47,6 +55,10 @@ public:
     coords getPose(){return position;}
     coords getVelocity(){return velocity;}
     std::vector<double> getXYZ();
+    void show()
+    {
+        ROS_INFO("Time: %f. Position: (%f, %f, %f). Velocity: (%f, %f, %f).", ptime, position.getX(), position.getY(), position.getZ(), velocity.getX(), velocity.getY(), velocity.getZ());
+    }
 };
 
 /*
@@ -88,6 +100,52 @@ public:
     double duration()
     {
         return traj.back().getTime()-traj.front().getTime();
+    }
+    coords getPoint(double timei)
+    {
+        std::vector<float> times = this->getTimes();
+        float incTime, frac, dx, dy, dz;
+        std::vector<float> prev (3,0), post (3,0), result (3,0);
+        float maxTime = *std::max_element(times.begin(), times.end());
+        float minTime = *std::min_element(times.begin(), times.end());
+        //ROS_INFO("Time: %f. Min: %f. Max: %f.", timei, minTime, maxTime);
+        
+        if (timei > maxTime){
+            return traj.back().getPose();
+        }
+        if (timei < minTime){
+            return traj.front().getPose();
+        }
+        //ROS_INFO("Times(0): %f.", times.at(0));
+        int i = 0;
+        std::vector<std::vector<float> > v (2, result);
+        bool found = false;
+        for (int k = 0; k<times.size(); ++k){
+            //ROS_INFO("Current time = %f. Time(k) = %f.", timei, times.at(k));
+            if(!found && timei < times.at(k)){
+                //ROS_INFO("Current time = %f. Time(k) = %f.", timei, times.at(k));
+                //ROS_INFO("Found! K=%u", k);
+                prev = traj.at(k-1).getPose().getPose();
+                post = traj.at(k).getPose().getPose();
+                found = true;
+                incTime = times.at(k)-times.at(k-1);
+            }
+        }
+
+        for (int j=0; j<3; ++j){
+            float fprev = prev.at(j), fpost = post.at(j);
+            result.at(j) = (fpost-fprev)*frac+fprev;
+        }
+        return coords(result.at(0), result.at(1), result.at(2));
+    }
+
+    void show()
+    {
+        ROS_INFO("Trajectory information:");
+        for (std::vector<viapoint>::iterator it = traj.begin(); it != traj.end(); ++it){
+            viapoint vi = *it;
+            vi.show();
+        }
     }
 };
 
@@ -210,15 +268,18 @@ trajectory::trajectory(dmp::LearnDMPFromDemo dmp_, viapoint init, double goal[3]
     srv.request.integrate_iter = integrate_iter;
 
     if(srv_client.call(srv)){
-    ROS_INFO("I have received a trajectory from the DMP server!");
     dmp::DMPTraj dmptraj = srv.response.plan;
+    int npoints = dmptraj.points.size();
+    ROS_INFO("I have received a trajectory from the DMP server with %u points!", npoints);
 
-    for(int i=0; i<dmptraj.points.size(); i++){
+    for(int i=0; i<npoints; i++){
         dmp::DMPPoint p = dmptraj.points.at(i);
         coords cs = coords(p.positions[0], p.positions[1], p.positions[2]);
         coords csv = coords(p.velocities[0], p.velocities[1], p.velocities[2]);
 
         viapoint vi = viapoint(dmptraj.times.at(i), cs, csv);
+
+        this->addPoint(vi);
     }
     }else{
         ROS_ERROR("Could not get the trajectory from the DMP server.");

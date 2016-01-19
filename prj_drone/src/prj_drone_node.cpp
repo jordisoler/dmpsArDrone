@@ -372,24 +372,26 @@ int main(int argc, char **argv)
 	server.setCallback(f);
 
 	// Get deomnstration trajectory
-	/*double initPose[3] = {0, 0, 1};
+	double initPose[3] = {0, 0, 1};
 	double finalPose[3] = {2, 0, 1};
 	ros::Time initTime = ros::Time(ros::Time(3.0));
 	ros::Duration tElapsed = ros::Duration(3.0);
-	trajectory tr = getStraightTraj(initPose, finalPose, 11, tElapsed, initTime);*/
+	trajectory tr = getStraightTraj(initPose, finalPose, 11, tElapsed, initTime);//*/
 
-	trajectory tr = getTrajectoryFromFile(referencefile);
+	//trajectory tr = getTrajectoryFromFile(referencefile);
 
 	// Get DMP
-	float gains[3] = {1, 1, 1};
-	int nbf = 20;
+	float gains[3] = {1000, 1000, 1000};
+	int nbf = 80;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
 	viapoint initVp = viapoint(tr.getInitTime(), tr.getInitPose(), tr.getInitVelocity());
-	double goal[3] = {2, 0, 1};
+	double goal[3] = {2, -1, 1};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration(), 1, n);
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/50, 1, n);
+	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
+	tr2.show();
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
@@ -496,20 +498,30 @@ int main(int argc, char **argv)
 		    double Ks [] = {0.5, 1.2, 1.2};
 		    double xyz [3];
 		    double threshold=0.01, err;
-		    geometry_msgs::Point p = traj1();
-		    xyz[0] = p.x;
+		    //geometry_msgs::Point p = traj1();
+
+		    coords pcoords = tr2.getPoint((ros::Time::now()-t0_).toSec());
+		    ROS_INFO("Going to point (%f, %f, %f)", pcoords.getX(), pcoords.getY(), pcoords.getZ());
+		    //geometry_msgs::Point p = pcoords.toMsgPoint();
+		    //ROS_INFO("I've constructed a geometry_msgs point.");
+
+		    /*xyz[0] = p.x;
 		    xyz[1] = p.y;
-		    xyz[2] = p.z;
+		    xyz[2] = p.z;*/
+		    xyz[0] = pcoords.getX();
+		    xyz[1] = pcoords.getY();
+		    xyz[2] = pcoords.getZ();
+
 		    err = Pcontrol(xyz, Ks, 3, twist_pub);
 		    logData(posfile);
 
 		    //ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
 
 		    if(err<threshold){
-			performing_=false;
-			waiting2_=true;
-			prev_time_=ros::Time::now();
-			ROS_INFO("Now, I have ended the execution of my movement.");
+				performing_=false;
+				waiting2_=true;
+				prev_time_=ros::Time::now();
+				ROS_INFO("Now, I have ended the execution of my movement.");
 		    }
 		}
 		if (waiting2_ && ros::Time::now()-prev_time_>TIME_WAITING2_){
