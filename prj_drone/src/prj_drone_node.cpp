@@ -11,9 +11,11 @@
 #include "ar_pose/ARMarkers.h"
 #include "tf/transform_listener.h"
 #include <trajectory.h>
+#include <csv_parser.hpp>
 
 #include <fstream>
 #include <string.h>
+#include <string>
 #include <iostream>
 #include <cstdlib>
 
@@ -39,6 +41,7 @@ const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
 
 const std::string logfile = "/home/jordi/catkin_ws/src/dmpsArdrone/projectData.csv";
 const std::string posfile = "/home/jordi/catkin_ws/src/dmpsArdrone/trajectoryData.csv";
+const std::string referencefile = "/home/jordi/catkin_ws/src/dmpsArdrone/trajectoryReference.csv";
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -87,7 +90,7 @@ ros::Time time_, prev_time_, t0_, t_start;
 *	AUXILLIARY FUNCTIONS
 **************************************************/
 /*
- *Toggle the camera tacking into account the flags cam_ and turning_
+ *Toggle the camera taking into account the flags cam_ and turning_
  */
 void tgcam(ros::ServiceClient camaras_sc)
 {
@@ -207,6 +210,43 @@ geometry_msgs::Point traj1()
     return linTraj(trajtime, initPose, finalPose, t-t0_);
 }
 
+trajectory getTrajectoryFromFile(std::string file)
+{
+	trajectory traj;
+
+	// CSV reading
+	csv_parser csv(file.c_str());
+
+    int nlines = csv.nlines();
+    double initTime = atof(csv.get_value(1,1).c_str());
+    double prevTime = initTime;
+    double prevx = atof(csv.get_value(1,2).c_str());
+    double prevy = atof(csv.get_value(1,3).c_str());
+    double prevz = atof(csv.get_value(1,4).c_str());
+    double ttime, tx, ty, tz, tinc;
+    for (int i=1; i<nlines; ++i){
+    	ttime = atof(csv.get_value(i,1).c_str())-initTime;
+    	tx = atof(csv.get_value(i,2).c_str());
+    	ty = atof(csv.get_value(i,3).c_str());
+    	tz = atof(csv.get_value(i,4).c_str());
+
+    	tinc = ttime-prevTime;
+
+    	coords ci(tx, ty, tz);
+    	coords veli((tx-prevx)/tinc, (ty-prevy)/tinc, (tz-prevz)/tinc);
+
+    	viapoint vi(ttime, ci, veli);
+
+    	traj.addPoint(vi);
+
+    	prevx = tx;
+    	prevy = ty;
+    	prevz = tz;
+    	prevTime = ttime;
+    }
+    return traj;
+}
+
 trajectory getStraightTraj(double initPose[3], double finalPose[3], double nsteps, ros::Duration du, ros::Time initTime)
 {
     coords iniCoords = coords(initPose[0], initPose[1], initPose[2]);
@@ -296,6 +336,13 @@ void callbackTimer(const ros::TimerEvent& tEvent)
 **************************************************/
 int main(int argc, char **argv)
 {
+	// Delate log files
+	std::ofstream ofs;
+	ofs.open(logfile.c_str(), std::ofstream::out | std::ofstream::trunc);
+	ofs.close();
+	ofs.open(posfile.c_str(), std::ofstream::out | std::ofstream::trunc);
+	ofs.close();
+
 	// Set up ROS node
 	ros::init(argc, argv, "prj_drone_node");
 	ros::NodeHandle n;
@@ -325,11 +372,13 @@ int main(int argc, char **argv)
 	server.setCallback(f);
 
 	// Get deomnstration trajectory
-	double initPose[3] = {0, 0, 1};
+	/*double initPose[3] = {0, 0, 1};
 	double finalPose[3] = {2, 0, 1};
 	ros::Time initTime = ros::Time(ros::Time(3.0));
 	ros::Duration tElapsed = ros::Duration(3.0);
-	trajectory tr = getStraightTraj(initPose, finalPose, 11, tElapsed, initTime);
+	trajectory tr = getStraightTraj(initPose, finalPose, 11, tElapsed, initTime);*/
+
+	trajectory tr = getTrajectoryFromFile(referencefile);
 
 	// Get DMP
 	float gains[3] = {1, 1, 1};
@@ -337,10 +386,10 @@ int main(int argc, char **argv)
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
-	viapoint initVp = viapoint(initTime.toSec(), coords(initPose[0], initPose[1], initPose[2]), coords(0,0,0));
+	viapoint initVp = viapoint(tr.getInitTime(), tr.getInitPose(), tr.getInitVelocity());
 	double goal[3] = {2, 0, 1};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tElapsed.toSec(), 1, n);
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration(), 1, n);
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
@@ -352,6 +401,7 @@ int main(int argc, char **argv)
 	ready2takeoff_ = true;
 	t_start = ros::Time::now();
 
+	
 	// Main loop
 	while (ros::ok())
 	{
@@ -360,30 +410,30 @@ int main(int argc, char **argv)
 
 	    // Take off
 	    if ((ros::Time::now()-t_start>ros::Duration(10) || actions_todo.update_takeoff) && ready2takeoff_){
-		std_msgs::Empty msg;
-		chatter_pub.publish(msg);
-		ready2takeoff_=false;
-		ROS_INFO("I want to take off");
+			std_msgs::Empty msg;
+			chatter_pub.publish(msg);
+			ready2takeoff_=false;
+			ROS_INFO("I want to take off");
 	    }
 
 	    // Land
 	    if (actions_todo.update_land){
-		std_msgs::Empty msgL;
-		Land_pub.publish(msgL);
+			std_msgs::Empty msgL;
+			Land_pub.publish(msgL);
 	    }
 
 	    // Toggle camera
 	    if (actions_todo.update_toggle_cam){
-		tgcam(camaras_sol);
-		actions_todo.update_toggle_cam=false;
+			tgcam(camaras_sol);
+			actions_todo.update_toggle_cam=false;
 	    }
 
 	    // Reset ArDrone
 	    if (actions_todo.update_reset){
-		ROS_INFO("Reset!");
-		std_msgs::Empty msg;
-		reset_pub.publish(msg);
-		actions_todo.update_reset=false;
+			ROS_INFO("Reset!");
+			std_msgs::Empty msg;
+			reset_pub.publish(msg);
+			actions_todo.update_reset=false;
 	    }
 
 

@@ -113,6 +113,9 @@ include_directories(
  add_library(trajectory
    src/trajectory.cpp
  )
+ add_library(csv_parser
+   src/csv_parser.cpp
+ )
 
 ## Declare a cpp executable
 add_executable(prj_drone_node src/prj_drone_node.cpp)

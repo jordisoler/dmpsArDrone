@@ -73,6 +73,22 @@ public:
     void removePoint(int i);
     void removeLast();
     dmp::LearnDMPFromDemo learn(float gains[3], int nbf, ros::NodeHandle n);
+    double getInitTime()
+    {
+        return traj.at(0).getTime();
+    }
+    coords getInitPose()
+    {
+        return traj.at(0).getPose();
+    }
+    coords getInitVelocity()
+    {
+        return traj.at(0).getVelocity();
+    }
+    double duration()
+    {
+        return traj.back().getTime()-traj.front().getTime();
+    }
 };
 
 
