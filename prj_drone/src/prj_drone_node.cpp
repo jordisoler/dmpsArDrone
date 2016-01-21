@@ -112,7 +112,9 @@ void writeData(std::vector<double> in, std::string fileName)
 		for(std::vector<double>::iterator it = in.begin(); it!=in.end(); ++it){
 			double data = *it;
 			fileWriter<<data;
-			fileWriter<<';';
+			if(it+1 != in.end()){
+				fileWriter<<';';
+			}
 		}
 		fileWriter<<'\n';
 		fileWriter.close();
@@ -387,7 +389,7 @@ int main(int argc, char **argv)
 
 	// Get resultant trajectory
 	viapoint initVp = viapoint(tr.getInitTime(), tr.getInitPose(), tr.getInitVelocity());
-	double goal[3] = {2, -1, 1};
+	double goal[3] = {2, 0, 1};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
 	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/50, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
