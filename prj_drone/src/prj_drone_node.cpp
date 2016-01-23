@@ -45,7 +45,8 @@ const std::string posfile = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/trajector
 // Trajectory CSV input
 const std::string STRAIGHT_LINE = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/straightLine.csv";
 const std::string LETTER_A = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/a.csv";
-const std::string referencefile = LETTER_A;
+const std::string LETTER_B = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/b.csv";
+const std::string referencefile = LETTER_B;
 
 
 // Sctructure containing actions to be done and desired velocities
@@ -266,7 +267,8 @@ trajectory getTrajectoryFromFile(std::string file)
     	prevTime = ttime;
     }
     traj.setNullLastVelocity();
-    traj.shiftPose(coords(0, 1, 0.5));
+    //traj.shiftPose(coords(0, 1, 0.5));	// Letter 'a'
+    traj.shiftPose(coords(0, 1, 0));		// Letter 'b'
     ROS_INFO("Trajectory successfully loaded!");
     return traj;
 }
@@ -409,7 +411,7 @@ int main(int argc, char **argv)
 
 	// Get DMP
 	float gains[3] = {1000, 1000, 1000};
-	int nbf = 300;
+	int nbf = 400;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
@@ -421,7 +423,7 @@ int main(int argc, char **argv)
 	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau/2, tr.duration()/50, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
 	tr2.show();
-	//tr2 = tr;
+	tr2 = tr;
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
