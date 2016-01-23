@@ -41,6 +41,9 @@ const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
 
 const std::string logfile = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/projectData.csv";
 const std::string posfile = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/trajectoryData.csv";
+const std::string trfile = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/tr.csv";
+const std::string tr2file = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/tr2.csv";
+
 
 // Trajectory CSV input
 const std::string STRAIGHT_LINE = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/straightLine.csv";
@@ -233,7 +236,7 @@ trajectory getTrajectoryFromFile(std::string file)
 
     	std::string tzs = csv.get_value(i,4);
     	tz = atof(tzs.c_str());
-    	if (tz>10){
+    	if (tz>2.5){
     		std::reverse( tzs.begin(), tzs.end() );
     		tz = atof(tzs.c_str());
     	}
@@ -267,10 +270,27 @@ trajectory getTrajectoryFromFile(std::string file)
     	prevTime = ttime;
     }
     traj.setNullLastVelocity();
-    //traj.shiftPose(coords(0, 1, 0.5));	// Letter 'a'
-    traj.shiftPose(coords(0, 1, 0));		// Letter 'b'
     ROS_INFO("Trajectory successfully loaded!");
     return traj;
+}
+
+void tr2csv(trajectory traj, std::string file)
+{
+	ROS_INFO("Writing trajectory to CSV.");
+	std::vector<double> row (7, 0);
+	for(int i=0; i<traj.size(); ++i){
+		viapoint vi = traj.getPoint(i);
+		coords pi = vi.getPose(), veli = vi.getVelocity();
+		row.at(0) = vi.getTime();
+		row.at(1) = pi.getX();
+		row.at(2) = pi.getY();
+		row.at(3) = pi.getZ();
+		row.at(4) = veli.getX();
+		row.at(5) = veli.getY();
+		row.at(6) = veli.getZ();
+
+		writeData(row, file);
+	}
 }
 
 trajectory getStraightTraj(double initPose[3], double finalPose[3], double nsteps, ros::Duration du, ros::Time initTime)
@@ -368,6 +388,10 @@ int main(int argc, char **argv)
 	ofs.close();
 	ofs.open(posfile.c_str(), std::ofstream::out | std::ofstream::trunc);
 	ofs.close();
+	ofs.open(trfile.c_str(), std::ofstream::out | std::ofstream::trunc);
+	ofs.close();
+	ofs.open(tr2file.c_str(), std::ofstream::out | std::ofstream::trunc);
+	ofs.close();
 
 	// Set up ROS node
 	ros::init(argc, argv, "prj_drone_node");
@@ -406,12 +430,15 @@ int main(int argc, char **argv)
 
 	// Get trajecoty from a file
 	trajectory tr = getTrajectoryFromFile(referencefile);
+	//tr.shiftPose(coords(0, 1, 0.5));	// Letter 'a'
+    tr.shiftPose(coords(0, 0.9, 0));		// Letter 'b'
 	ROS_INFO("-------------------------------Initial trajectory:---------------------------------");
 	tr.show();
+	tr2csv(tr, trfile);
 
 	// Get DMP
 	float gains[3] = {1000, 1000, 1000};
-	int nbf = 400;
+	int nbf = 900;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
@@ -420,10 +447,11 @@ int main(int argc, char **argv)
 	coords dcoords = tr.back().getPose();
 	double goal[3] = {dcoords.getX(), dcoords.getY(), dcoords.getZ()};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau/2, tr.duration()/50, 1, n);
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/150, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
 	tr2.show();
-	tr2 = tr;
+	tr2csv(tr2, tr2file);
+	//tr2 = tr;
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;

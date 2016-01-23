@@ -87,6 +87,7 @@ public:
     void removePoint(int i);
     void removeLast();
     dmp::LearnDMPFromDemo learn(float gains[3], int nbf, ros::NodeHandle n);
+    double size(){return traj.size();}
     double getInitTime()
     {
         return traj.at(0).getTime();
