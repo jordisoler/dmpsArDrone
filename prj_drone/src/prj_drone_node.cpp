@@ -36,12 +36,17 @@ using namespace trajj;
 
 // Duration of some events
 const static ros::Duration TIME_TURNING_ = ros::Duration(6);
-const static ros::Duration TIME_WAITING_ = ros::Duration(2);
+const static ros::Duration TIME_WAITING_ = ros::Duration(1);
 const static ros::Duration TIME_WAITING2_ = ros::Duration(2);
 
-const std::string logfile = "/home/jordi/catkin_ws/src/dmpsArdrone/projectData.csv";
-const std::string posfile = "/home/jordi/catkin_ws/src/dmpsArdrone/trajectoryData.csv";
-const std::string referencefile = "/home/jordi/catkin_ws/src/dmpsArdrone/trajectoryReference.csv";
+const std::string logfile = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/projectData.csv";
+const std::string posfile = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/trajectoryData.csv";
+
+// Trajectory CSV input
+const std::string STRAIGHT_LINE = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/straightLine.csv";
+const std::string LETTER_A = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/a.csv";
+const std::string referencefile = LETTER_A;
+
 
 // Sctructure containing actions to be done and desired velocities
 struct ActionsToDo
@@ -181,7 +186,7 @@ double Pcontrol(double goal[], double gains[], int numel, ros::Publisher twist_p
 }
 
 /*
- *Trajectory via point generator (Trajectory 1, straight line)
+ *Trajectory via point generator (straight line)
  */
 geometry_msgs::Point linTraj(double trajtime, double initPose[3], double finalPose[3], ros::Duration du)
 {
@@ -203,15 +208,6 @@ geometry_msgs::Point linTraj(double trajtime, double initPose[3], double finalPo
     return pr;
 }
 
-geometry_msgs::Point traj1()
-{
-    ros::Time t = ros::Time::now();
-    double trajtime = 3;
-    double initPose [] = {0, 0, 1};
-    double finalPose [] = {2, 0, 1};
-    return linTraj(trajtime, initPose, finalPose, t-t0_);
-}
-
 trajectory getTrajectoryFromFile(std::string file)
 {
 	trajectory traj;
@@ -225,17 +221,40 @@ trajectory getTrajectoryFromFile(std::string file)
     double prevx = atof(csv.get_value(1,2).c_str());
     double prevy = atof(csv.get_value(1,3).c_str());
     double prevz = atof(csv.get_value(1,4).c_str());
-    double ttime, tx, ty, tz, tinc;
+    double ttime, tx, ty, tz, vx, vy,  vz, pvx, pvy, pvz, tinc;
+    double vs [3], prevvs [3] = {0, 0, 0};
+
+    ROS_INFO("Reading trajectory from file.");
     for (int i=1; i<nlines; ++i){
     	ttime = atof(csv.get_value(i,1).c_str())-initTime;
     	tx = atof(csv.get_value(i,2).c_str());
     	ty = atof(csv.get_value(i,3).c_str());
-    	tz = atof(csv.get_value(i,4).c_str());
+
+    	std::string tzs = csv.get_value(i,4);
+    	tz = atof(tzs.c_str());
+    	if (tz>10){
+    		std::reverse( tzs.begin(), tzs.end() );
+    		tz = atof(tzs.c_str());
+    	}
+    	//ROS_INFO("Z value (string): %s, (double): %f", csv.get_value(i,4).c_str(), tz);
 
     	tinc = ttime-prevTime;
 
     	coords ci(tx, ty, tz);
-    	coords veli((tx-prevx)/tinc, (ty-prevy)/tinc, (tz-prevz)/tinc);
+
+    	vs[0] = (tx-prevx)/tinc;
+    	vs[1] = (ty-prevy)/tinc;
+    	vs[2] = (tz-prevz)/tinc;
+
+    	for(int i=0; i<3; ++i){
+    		if(vs[i] > 1 || vs[i] < -1){
+    			vs[i] = prevvs[i];
+    		}
+    		prevvs[i] = vs[i];
+    	}
+
+    	
+    	coords veli(vs[0], vs[1], vs[2]);
 
     	viapoint vi(ttime, ci, veli);
 
@@ -246,6 +265,9 @@ trajectory getTrajectoryFromFile(std::string file)
     	prevz = tz;
     	prevTime = ttime;
     }
+    traj.setNullLastVelocity();
+    traj.shiftPose(coords(0, 1, 0.5));
+    ROS_INFO("Trajectory successfully loaded!");
     return traj;
 }
 
@@ -373,27 +395,33 @@ int main(int argc, char **argv)
 	f = boost::bind(&dynrec_callback, _1, _2);
 	server.setCallback(f);
 
-	// Get deomnstration trajectory
-	double initPose[3] = {0, 0, 1};
+	// Get deomnstration trajectory (Theoretical)
+	/*double initPose[3] = {0, 0, 1};
 	double finalPose[3] = {2, 0, 1};
 	ros::Time initTime = ros::Time(ros::Time(3.0));
 	ros::Duration tElapsed = ros::Duration(3.0);
 	trajectory tr = getStraightTraj(initPose, finalPose, 11, tElapsed, initTime);//*/
 
-	//trajectory tr = getTrajectoryFromFile(referencefile);
+	// Get trajecoty from a file
+	trajectory tr = getTrajectoryFromFile(referencefile);
+	ROS_INFO("-------------------------------Initial trajectory:---------------------------------");
+	tr.show();
 
 	// Get DMP
 	float gains[3] = {1000, 1000, 1000};
-	int nbf = 80;
+	int nbf = 300;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
 	viapoint initVp = viapoint(tr.getInitTime(), tr.getInitPose(), tr.getInitVelocity());
-	double goal[3] = {2, 0, 1};
+	//double goal[3] = {2, 0, 1};
+	coords dcoords = tr.back().getPose();
+	double goal[3] = {dcoords.getX(), dcoords.getY(), dcoords.getZ()};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/50, 1, n);
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau/2, tr.duration()/50, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
 	tr2.show();
+	//tr2 = tr;
 
 	// Set up states
 	CURRENT_STATE_ = LANDED;
@@ -410,7 +438,6 @@ int main(int argc, char **argv)
 	while (ros::ok())
 	{
 		logData(logfile);
-
 
 	    // Take off
 	    if ((ros::Time::now()-t_start>ros::Duration(10) || actions_todo.update_takeoff) && ready2takeoff_){
@@ -439,7 +466,6 @@ int main(int argc, char **argv)
 			reset_pub.publish(msg);
 			actions_todo.update_reset=false;
 	    }
-
 
 	    // State transitions
 	    if(CURRENT_STATE_ != RECEIVED_STATE_){
@@ -496,28 +522,30 @@ int main(int argc, char **argv)
 		    t0_ = ros::Time::now();
 		    ROS_INFO("Now, I'm starting my movement.");
 		}
+		if(waiting_){
+			double Ks []={1,1,1,1};
+		    double gs [3];
+		    coords initPose = tr2.getInitPose();
+		    gs[1] = initPose.getX();
+   		    gs[2] = initPose.getY();
+		    gs[3] = initPose.getZ();
+		    ROS_INFO("Going to initial point (%f, %f, %f)", gs[0], gs[1], gs[2]);
+		    double err = Pcontrol(gs, Ks, 3, twist_pub);
+		}
 		if (performing_){
 		    double Ks [] = {0.5, 1.2, 1.2};
 		    double xyz [3];
-		    double threshold=0.01, err;
-		    //geometry_msgs::Point p = traj1();
+		    double threshold=0.05, err;
 
 		    coords pcoords = tr2.getPoint((ros::Time::now()-t0_).toSec());
 		    ROS_INFO("Going to point (%f, %f, %f)", pcoords.getX(), pcoords.getY(), pcoords.getZ());
-		    //geometry_msgs::Point p = pcoords.toMsgPoint();
-		    //ROS_INFO("I've constructed a geometry_msgs point.");
 
-		    /*xyz[0] = p.x;
-		    xyz[1] = p.y;
-		    xyz[2] = p.z;*/
 		    xyz[0] = pcoords.getX();
 		    xyz[1] = pcoords.getY();
 		    xyz[2] = pcoords.getZ();
 
 		    err = Pcontrol(xyz, Ks, 3, twist_pub);
 		    logData(posfile);
-
-		    //ROS_INFO("Punt a on anar: (%f,%f,%f).", xyz[0], xyz[1], xyz[2]);
 
 		    if(err<threshold){
 				performing_=false;

@@ -54,6 +54,7 @@ public:
     float getTime(){return ptime;}
     coords getPose(){return position;}
     coords getVelocity(){return velocity;}
+    void setPose(coords pose){position = pose;}
     std::vector<double> getXYZ();
     void show()
     {
@@ -80,6 +81,7 @@ public:
     std::vector<float> getY();
     std::vector<float> getZ();
     viapoint getPoint(int i);
+    viapoint back(){return traj.back();}
     void addPoint(viapoint vp);
     void addPoint(viapoint vp, int i);
     void removePoint(int i);
@@ -137,6 +139,29 @@ public:
             result.at(j) = (fpost-fprev)*frac+fprev;
         }
         return coords(result.at(0), result.at(1), result.at(2));
+    }
+
+    void setNullLastVelocity()
+    {
+        viapoint vi = traj.back();
+        viapoint vi_new(vi.getTime(), vi.getPose(), coords(0,0,0));
+        traj.back() = vi_new;
+    }
+
+    void shiftPose(coords xyz)
+    {
+        for(int i = 0; i<traj.size(); ++i){
+            viapoint vi = traj.at(i);
+            coords cs = vi.getPose();
+            coords cs_new(cs.getX()-xyz.getX(), cs.getY()-xyz.getY(), cs.getZ()-xyz.getZ());
+            vi.setPose(cs_new);
+            traj.at(i)=vi;
+        }
+    }
+
+    void root()
+    {
+        this->shiftPose(traj.front().getPose());
     }
 
     void show()
@@ -204,7 +229,7 @@ std::vector<double> viapoint::getXYZ()
     out.at(0)=position.getX();
     out.at(1)=position.getY();
     out.at(2)=position.getZ();
-    ROS_INFO("Position = (%f, %f,  %f)", position.getX(), position.getY(), position.getZ());
+    //ROS_INFO("Position = (%f, %f,  %f)", position.getX(), position.getY(), position.getZ());
     return out;
 }
 
@@ -335,7 +360,7 @@ viapoint trajectory::getPoint(int i){ return traj.at(i);}
 
 void trajectory::addPoint(viapoint vp){ 
     coords cpose = vp.getPose();
-    ROS_INFO("Add point function: Pose introduced: (%f, %f, %f)", cpose.getX(), cpose.getY(), cpose.getZ());
+    //ROS_INFO("Add point function: Pose introduced: (%f, %f, %f)", cpose.getX(), cpose.getY(), cpose.getZ());
     traj.push_back(vp);
 }
 
