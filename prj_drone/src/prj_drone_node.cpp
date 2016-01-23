@@ -5,6 +5,7 @@
 #include "std_srvs/Empty.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Point.h"
+#include "visualization_msgs/Marker.h"
 #include "ardrone_autonomy/Navdata.h"
 #include <cstdlib>
 #include <ctime>
@@ -122,7 +123,7 @@ void writeData(std::vector<double> in, std::string fileName)
 			double data = *it;
 			fileWriter<<data;
 			if(it+1 != in.end()){
-				fileWriter<<';';
+				fileWriter<<'\t';
 			}
 		}
 		fileWriter<<'\n';
@@ -403,6 +404,7 @@ int main(int argc, char **argv)
 	ros::Publisher Land_pub = n.advertise<std_msgs::Empty>("/ardrone/land", 1000);
 	ros::Publisher twist_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1000);
 	ros::Publisher reset_pub = n.advertise<std_msgs::Empty>("/ardrone/reset", 1000);
+	ros::Publisher vis_pub = n.advertise<visualization_msgs::Marker>( "pose_traj", 1000 );
 
 	// Subscribers
 	ros::Subscriber ar_pose_sub = n.subscribe("ar_pose_marker", 1, MarkerCallback);
@@ -420,6 +422,18 @@ int main(int argc, char **argv)
 
 	f = boost::bind(&dynrec_callback, _1, _2);
 	server.setCallback(f);
+	
+	visualization_msgs::Marker marker;
+	marker.header.frame_id = "base_footprint";
+	marker.type = visualization_msgs::Marker::LINE_STRIP;
+	marker.action = visualization_msgs::Marker::ADD;
+	marker.scale.x = 0.1;
+	marker.scale.y = 0.1;
+	marker.scale.z = 0.1;
+	marker.color.a = 1.0; // alpha
+	marker.color.r = 0.0;
+	marker.color.g = 1.0;
+	marker.color.b = 0.0;
 
 	// Get deomnstration trajectory (Theoretical)
 	/*double initPose[3] = {0, 0, 1};
@@ -432,13 +446,14 @@ int main(int argc, char **argv)
 	trajectory tr = getTrajectoryFromFile(referencefile);
 	tr.shiftPose(coords(0, 1, 0.5));	// Letter 'a'
     //tr.shiftPose(coords(0, 0.9, 0));		// Letter 'b'
+    //trajectory trb = getTrajectoryFromFile(LETTER_B);
 	ROS_INFO("-------------------------------Initial trajectory:---------------------------------");
 	tr.show();
 	tr2csv(tr, trfile);
 
 	// Get DMP
 	float gains[3] = {1000, 1000, 1000};
-	int nbf = 2;
+	int nbf = 5;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
@@ -446,6 +461,7 @@ int main(int argc, char **argv)
 	//double goal[3] = {2, 0, 1};
 	coords dcoords = tr.back().getPose();
 	double goal[3] = {dcoords.getX(), dcoords.getY(), dcoords.getZ()};
+	//double goal[3] = {dcoords.getX(), 1.17, 0.1};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
 	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/150, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
@@ -470,7 +486,7 @@ int main(int argc, char **argv)
 		logData(logfile);
 
 	    // Take off
-	    if ((ros::Time::now()-t_start>ros::Duration(10) || actions_todo.update_takeoff) && ready2takeoff_){
+	    if ((actions_todo.update_takeoff) && ready2takeoff_){
 			std_msgs::Empty msg;
 			chatter_pub.publish(msg);
 			ready2takeoff_=false;
@@ -556,9 +572,9 @@ int main(int argc, char **argv)
 			double Ks []={1,1,1,1};
 		    double gs [3];
 		    coords initPose = tr2.getInitPose();
-		    gs[1] = initPose.getX();
-   		    gs[2] = initPose.getY();
-		    gs[3] = initPose.getZ();
+		    gs[0] = initPose.getX();
+   		    gs[1] = initPose.getY();
+		    gs[2] = initPose.getZ();
 		    ROS_INFO("Going to initial point (%f, %f, %f)", gs[0], gs[1], gs[2]);
 		    double err = Pcontrol(gs, Ks, 3, twist_pub);
 		}
@@ -576,6 +592,20 @@ int main(int argc, char **argv)
 
 		    err = Pcontrol(xyz, Ks, 3, twist_pub);
 		    logData(posfile);
+
+		    // Setup visualization message
+			geometry_msgs::Point p;
+			p.x = xyz[0];
+			p.y = xyz[1];
+			p.z = xyz[2];
+			
+
+			/*marker.pose.position.x = xyz[0];
+			marker.pose.position.y = xyz[1];
+			marker.pose.position.z = xyz[2];*/
+			marker.points.push_back(p);
+			marker.header.stamp = ros::Time();
+		    vis_pub.publish( marker );
 
 		    if(err<threshold){
 				performing_=false;
