@@ -49,7 +49,7 @@ const std::string tr2file = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/tr2.csv";
 const std::string STRAIGHT_LINE = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/straightLine.csv";
 const std::string LETTER_A = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/a.csv";
 const std::string LETTER_B = "/home/jordi/catkin_ws/src/dmpsArdrone/csv/demos/b.csv";
-const std::string referencefile = LETTER_B;
+const std::string referencefile = LETTER_A;
 
 
 // Sctructure containing actions to be done and desired velocities
@@ -430,8 +430,8 @@ int main(int argc, char **argv)
 
 	// Get trajecoty from a file
 	trajectory tr = getTrajectoryFromFile(referencefile);
-	//tr.shiftPose(coords(0, 1, 0.5));	// Letter 'a'
-    tr.shiftPose(coords(0, 0.9, 0));		// Letter 'b'
+	tr.shiftPose(coords(0, 1, 0.5));	// Letter 'a'
+    //tr.shiftPose(coords(0, 0.9, 0));		// Letter 'b'
 	ROS_INFO("-------------------------------Initial trajectory:---------------------------------");
 	tr.show();
 	tr2csv(tr, trfile);
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 	coords dcoords = tr.back().getPose();
 	double goal[3] = {dcoords.getX(), dcoords.getY(), dcoords.getZ()};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/150, 1, n);
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau/2, tr.duration()/150, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
 	tr2.show();
 	tr2csv(tr2, tr2file);
