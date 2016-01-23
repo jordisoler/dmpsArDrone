@@ -438,7 +438,7 @@ int main(int argc, char **argv)
 
 	// Get DMP
 	float gains[3] = {1000, 1000, 1000};
-	int nbf = 900;
+	int nbf = 2;
 	dmp::LearnDMPFromDemo dmpTraj = tr.learn(gains, nbf, n);
 
 	// Get resultant trajectory
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 	coords dcoords = tr.back().getPose();
 	double goal[3] = {dcoords.getX(), dcoords.getY(), dcoords.getZ()};
 	double gtolerance[3] = {0.1, 0.1, 0.1};
-	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau/2, tr.duration()/150, 1, n);
+	trajectory tr2 = trajectory(dmpTraj, initVp, goal, gtolerance, -1, dmpTraj.response.tau, tr.duration()/150, 1, n);
 	ROS_INFO("-------------------------------Trajectory to perform:---------------------------------");
 	tr2.show();
 	tr2csv(tr2, tr2file);
